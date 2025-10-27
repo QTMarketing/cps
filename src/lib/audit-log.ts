@@ -568,7 +568,7 @@ export async function exportAuditLogsToCSV(params: {
   ];
 
   const csvRows = logs.data.map(log => [
-    log.timestamp.toISOString(),
+    log.createdAt.toISOString(),
     log.user.username,
     log.action,
     log.entityType,
