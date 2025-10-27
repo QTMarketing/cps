@@ -74,10 +74,10 @@ function addSecurityHeaders(response: NextResponse, config: SecurityConfig): Nex
   const csp = [
     "default-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https:",
-    "script-src 'self'",
-    "connect-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "connect-src 'self' https:",
     "frame-src 'none'",
     "object-src 'none'",
     "upgrade-insecure-requests",
