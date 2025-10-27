@@ -94,7 +94,9 @@ export async function GET(req: NextRequest) {
           vendorName: 'Test Vendor',
           vendorType: 'MERCHANDISE' as any,
           description: 'Test vendor for system testing',
-          contact: '{"email": "vendor@test.com", "phone": "555-987-6543"}',
+          email: 'vendor@test.com',
+          phone: '555-987-6543',
+          contactPerson: 'Test Contact',
           storeId: testStore?.id || 'test-store-id',
         },
       });
