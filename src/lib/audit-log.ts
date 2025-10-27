@@ -150,7 +150,6 @@ export function extractRequestInfo(req: NextRequest): { ipAddress?: string; user
     req.headers.get('x-forwarded-for')?.split(',')[0] ||
     req.headers.get('x-real-ip') ||
     req.headers.get('cf-connecting-ip') ||
-    req.ip ||
     'unknown';
 
   const userAgent = req.headers.get('user-agent') || 'unknown';
@@ -431,7 +430,7 @@ export async function getAuditLogs(params: {
         },
       },
       orderBy: {
-        timestamp: 'desc',
+        createdAt: 'desc',
       },
     }),
     prisma.auditLog.count({ where }),
