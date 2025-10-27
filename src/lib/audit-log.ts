@@ -105,7 +105,7 @@ export interface AuditLogResponse {
   newValues?: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
-  timestamp: Date;
+  createdAt: Date;
   user: {
     username: string;
     email: string;
@@ -464,7 +464,7 @@ export async function getEntityAuditLogs(entityType: EntityType, entityId: strin
       },
     },
     orderBy: {
-      timestamp: 'desc',
+      createdAt: 'desc',
     },
   });
 }
@@ -480,7 +480,7 @@ export async function getUserActivitySummary(userId: string, days: number = 30) 
     by: ['action', 'entityType'],
     where: {
       userId,
-      timestamp: {
+      createdAt: {
         gte: startDate,
       },
     },
@@ -506,7 +506,7 @@ export async function getSystemActivitySummary(days: number = 7) {
   const activities = await prisma.auditLog.groupBy({
     by: ['action', 'entityType'],
     where: {
-      timestamp: {
+      createdAt: {
         gte: startDate,
       },
     },
@@ -535,7 +535,7 @@ export async function cleanupOldAuditLogs(retentionDays: number = 365) {
 
   const result = await prisma.auditLog.deleteMany({
     where: {
-      timestamp: {
+      createdAt: {
         lt: cutoffDate,
       },
     },
