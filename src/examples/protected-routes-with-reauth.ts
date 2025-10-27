@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },

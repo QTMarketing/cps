@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },
@@ -295,7 +295,7 @@ export async function POST(req: NextRequest) {
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },
@@ -392,7 +392,7 @@ function generateCSV(checks: any[]): string {
     check.status,
     check.memo || '',
     check.bank.bankName,
-    check.issuer.username,
+    check.issuedByUser.username,
   ]);
 
   const csvContent = [headers, ...rows]

@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },
@@ -190,7 +190,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },
@@ -218,7 +218,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },
@@ -337,7 +337,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },
@@ -425,7 +425,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },
@@ -456,7 +456,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         bank: {
           select: { bankName: true },
         },
-        issuer: {
+        issuedByUser: {
           select: { username: true },
         },
       },

@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
             isActive: true,
           },
         },
-        issuer: {
+        issuedByUser: {
           select: {
             id: true,
             username: true,

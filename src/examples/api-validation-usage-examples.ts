@@ -274,7 +274,7 @@ export async function GET_Reports(req: NextRequest) {
       include: {
         vendor: { select: { vendorName: true } },
         bank: { select: { bankName: true } },
-        issuer: { select: { username: true } },
+        issuedByUser: { select: { username: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

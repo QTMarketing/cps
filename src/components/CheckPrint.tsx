@@ -52,7 +52,7 @@ interface Check {
   vendor: {
     vendorName: string;
   };
-  issuer: {
+  issuedByUser: {
     username: string;
   };
 }
@@ -160,7 +160,7 @@ export default function CheckPrint({ check, onPrint }: CheckPrintProps) {
 
       // Issued by (bottom left)
       doc.setFontSize(7);
-      doc.text(`Issued by: ${check.issuer.username}`, 0.5, 2.9);
+      doc.text(`Issued by: ${check.issuedByUser.username}`, 0.5, 2.9);
 
       // Status badge (top center)
       doc.setFillColor(200, 200, 200);
@@ -323,7 +323,7 @@ export default function CheckPrint({ check, onPrint }: CheckPrintProps) {
             </div>
           </div>
           
-          <div class="issued-by">Issued by: ${check.issuer.username}</div>
+          <div class="issued-by">Issued by: ${check.issuedByUser.username}</div>
         </body>
       </html>
     `;
@@ -404,7 +404,7 @@ export default function CheckPrint({ check, onPrint }: CheckPrintProps) {
             
             {/* Issued by */}
             <div className="absolute bottom-2 left-4 text-xs text-gray-600">
-              Issued by: {check.issuer.username}
+              Issued by: {check.issuedByUser.username}
             </div>
           </div>
           

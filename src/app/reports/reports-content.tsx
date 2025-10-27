@@ -52,7 +52,7 @@ interface Check {
   vendor?: {
     vendorName: string;
   };
-  issuer?: {
+  issuedByUser?: {
     username: string;
   };
 }
@@ -144,7 +144,7 @@ export default function ReportsContent() {
           (check.referenceNumber || check.checkNumber || '').toLowerCase().includes(searchLower) ||
           (check.vendor?.vendorName || '').toLowerCase().includes(searchLower) ||
           (check.memo || '').toLowerCase().includes(searchLower) ||
-          (check.issuer?.username || '').toLowerCase().includes(searchLower);
+          (check.issuedByUser?.username || '').toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }
 
@@ -390,7 +390,7 @@ export default function ReportsContent() {
         check.vendor?.vendorName || 'Unknown Vendor',
         Number(check.amount),
         check.memo || "",
-        check.issuer?.username || 'Unknown',
+        check.issuedByUser?.username || 'Unknown',
         check.status,
       ].join(","))
     ].join("\n");
@@ -426,7 +426,7 @@ export default function ReportsContent() {
       check.vendor?.vendorName || 'Unknown Vendor',
       `$${Number(check.amount).toFixed(2)}`,
       check.memo || "",
-      check.issuer?.username || 'Unknown',
+      check.issuedByUser?.username || 'Unknown',
       check.status,
     ]);
 
