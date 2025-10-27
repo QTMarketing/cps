@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 
@@ -31,7 +31,7 @@ async function main() {
       username: "admin",
       email: "admin@quicktrackinc.com",
       password: "admin1234",
-      role: "ADMIN",
+      role: Role.ADMIN,
       storeId: store.id,
     },
     {
@@ -39,7 +39,7 @@ async function main() {
       username: "manager",
       email: "manager@qtoffice.com",
       password: "manager123",
-      role: "MANAGER",
+      role: Role.MANAGER,
       storeId: store.id,
     },
     {
@@ -47,7 +47,7 @@ async function main() {
       username: "user",
       email: "user@qtoffice.com",
       password: "user123",
-      role: "USER",
+      role: Role.USER,
       storeId: store.id,
     },
   ];
