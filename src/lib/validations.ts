@@ -59,10 +59,7 @@ const passwordSchema = z
  * Currency amount validation (max $999,999.99)
  */
 const currencySchema = z
-  .number({
-    required_error: 'Amount is required',
-    invalid_type_error: 'Amount must be a number',
-  })
+  .number({ message: 'Amount must be a number' })
   .positive('Amount must be positive')
   .max(999999.99, 'Amount cannot exceed $999,999.99')
   .refine(
@@ -143,8 +140,7 @@ const memoSchema = z
  * Payment Method enum
  */
 const paymentMethodSchema = z.enum(['Check', 'EDI', 'MO', 'Cash'], {
-  required_error: 'Payment method is required',
-  invalid_type_error: 'Invalid payment method',
+  message: 'Invalid payment method',
 });
 
 /**
@@ -196,8 +192,7 @@ export const CheckVoidSchema = z.object({
  * Vendor Type enum
  */
 const vendorTypeSchema = z.enum(['MERCHANDISE', 'EXPENSE', 'EMPLOYEE'], {
-  required_error: 'Vendor type is required',
-  invalid_type_error: 'Invalid vendor type',
+  message: 'Invalid vendor type',
 });
 
 /**
@@ -296,10 +291,7 @@ const routingNumberSchema = z
  * Bank Balance validation
  */
 const bankBalanceSchema = z
-  .number({
-    required_error: 'Initial balance is required',
-    invalid_type_error: 'Balance must be a number',
-  })
+  .number({ message: 'Balance must be a number' })
   .min(0, 'Balance cannot be negative')
   .max(999999999.99, 'Balance cannot exceed $999,999,999.99')
   .refine(
@@ -372,8 +364,7 @@ const usernameSchema = z
  * User Role enum
  */
 const userRoleSchema = z.enum(['ADMIN', 'MANAGER', 'USER'], {
-  required_error: 'User role is required',
-  invalid_type_error: 'Invalid user role',
+  message: 'Invalid user role',
 });
 
 /**
@@ -577,7 +568,7 @@ export const ReportFilterSchema = z.object({
  */
 export const ReportExportSchema = ReportFilterSchema.extend({
   format: z.enum(['CSV', 'PDF', 'EXCEL'], {
-    required_error: 'Export format is required',
+    message: 'Export format is required',
   }),
 });
 
