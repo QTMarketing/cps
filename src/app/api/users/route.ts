@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
       data: {
         username: validatedData.username,
         email: validatedData.email,
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         role: validatedData.role,
         storeId: validatedData.storeId,
       },

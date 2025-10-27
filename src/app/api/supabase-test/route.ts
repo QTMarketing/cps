@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
         data: {
           username: 'admin',
           email: 'admin@qt-office.com',
-          password: hashedPassword,
-          role: 'ADMIN',
+          passwordHash: hashedPassword,
+          role: 'ADMIN' as any,
           storeId: testStore?.id || 'test-store-id',
         },
       });
