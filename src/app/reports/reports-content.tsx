@@ -291,7 +291,7 @@ export default function ReportsContent() {
         );
       },
     }),
-    columnHelper.accessor((row) => row.issuer?.username || 'Unknown', {
+    columnHelper.accessor((row) => row.issuedByUser?.username || 'Unknown', {
       id: "username",
       header: ({ column }) => (
         <Button
