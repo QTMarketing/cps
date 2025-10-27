@@ -7,6 +7,9 @@ import { SidebarLayout } from "@/components/SidebarLayout";
 export const metadata: Metadata = {
   title: "QT Office - Check Printing System",
   description: "Comprehensive check printing and payment management system",
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
