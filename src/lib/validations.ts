@@ -195,7 +195,7 @@ export const CheckVoidSchema = z.object({
 /**
  * Vendor Type enum
  */
-const vendorTypeSchema = z.enum(['Merchandise', 'Expense', 'Employee'], {
+const vendorTypeSchema = z.enum(['MERCHANDISE', 'EXPENSE', 'EMPLOYEE'], {
   required_error: 'Vendor type is required',
   invalid_type_error: 'Invalid vendor type',
 });
