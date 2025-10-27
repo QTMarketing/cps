@@ -20,7 +20,7 @@ export async function GET(
             store: true,
           },
         },
-        issuer: {
+        issuedByUser: {
           include: {
             store: true,
           },
@@ -70,7 +70,7 @@ export async function PUT(
             store: true,
           },
         },
-        issuer: {
+        issuedByUser: {
           include: {
             store: true,
           },

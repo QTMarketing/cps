@@ -651,7 +651,7 @@ export async function POST_Login(req: NextRequest) {
         id: true,
         username: true,
         email: true,
-        password: true,
+        passwordHash: true,
         role: true,
       },
     });
@@ -673,7 +673,7 @@ export async function POST_Login(req: NextRequest) {
     }
 
     // Verify password
-    const isPasswordValid = await compare(password, user.password);
+    const isPasswordValid = await compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       // Log failed login attempt

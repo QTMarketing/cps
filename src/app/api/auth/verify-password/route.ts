@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         id: true,
         username: true,
         email: true,
-        password: true,
+        passwordHash: true,
         role: true,
       },
     });
@@ -72,11 +72,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify password
-    const isPasswordValid = await compare(validatedData.password, user.password);
+    const isPasswordValid = await compare(validatedData.password, user.passwordHash);
 
     if (!isPasswordValid) {
       // Log failed password verification attempt
-      console.warn(`Failed password verification attempt for user ${user.username} from IP: ${req.ip || 'unknown'}`);
+      const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+      console.warn(`Failed password verification attempt for user ${user.username} from IP: ${ip}`);
       
       return NextResponse.json(
         { error: 'Invalid password' },
