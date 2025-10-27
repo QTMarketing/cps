@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role, VendorType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 
@@ -92,25 +92,28 @@ async function main() {
     {
       id: "cmh4jy99u0006rgk2joxgi0vg",
       vendorName: "Office Supplies Inc",
-      vendorType: "Merchandise" as const,
+      vendorType: VendorType.MERCHANDISE,
       description: "Office supplies and equipment",
-      contact: "contact@officesupplies.com",
+      contactPerson: "John Doe",
+      email: "contact@officesupplies.com",
       storeId: store.id,
     },
     {
       id: "cmh4jy99u0007rgk2joxgi0vh",
       vendorName: "Cleaning Services LLC",
-      vendorType: "Expense" as const,
+      vendorType: VendorType.EXPENSE,
       description: "Professional cleaning services",
-      contact: "info@cleaningservices.com",
+      contactPerson: "Jane Smith",
+      email: "info@cleaningservices.com",
       storeId: store.id,
     },
     {
       id: "cmh4jy99u0008rgk2joxgi0vi",
       vendorName: "John Smith",
-      vendorType: "Employee" as const,
+      vendorType: VendorType.EMPLOYEE,
       description: "Software Developer",
-      contact: "john.smith@company.com",
+      contactPerson: "John Smith",
+      email: "john.smith@company.com",
       storeId: store.id,
     },
   ];
