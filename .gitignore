@@ -106,3 +106,4 @@ Thumbs.db
 # Exclude documentation markdown files (keep README.md)
 *.md
 !README.md
+supabase.full.dump
