@@ -85,7 +85,8 @@ model Vendor {
 
 model Check {
   id              String        @id @default(uuid())
-  checkNumber     String        @unique @map("check_number")
+  checkNumber     String?       @map("check_number")
+  referenceNumber String        @unique @map("reference_number")
   paymentMethod   PaymentMethod @map("payment_method")
   bankId          String        @map("bank_id")
   bank            Bank          @relation(fields: [bankId], references: [id])

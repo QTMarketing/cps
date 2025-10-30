@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Printer, FileText } from "lucide-react";
 import CheckPrint from "@/components/CheckPrintComponent";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Check {
   id: string;
@@ -35,6 +36,9 @@ interface Check {
 export default function CheckPrintingPage() {
   const [checks, setChecks] = useState<Check[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [field, setField] = useState<'number'|'vendor'|'amount'|'status'|'bank'|'user'>('number');
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchChecks();
@@ -113,6 +117,22 @@ export default function CheckPrintingPage() {
     }
   };
 
+  const filtered = useMemo(() => {
+    if (!search.trim()) return checks;
+    const q = search.toLowerCase();
+    return checks.filter(c => {
+      switch (field) {
+        case 'number': return (c.referenceNumber || c.checkNumber || '').toLowerCase().includes(q);
+        case 'vendor': return (c.vendor?.vendorName || '').toLowerCase().includes(q);
+        case 'amount': return String(c.amount).includes(search);
+        case 'status': return (c.status || '').toLowerCase().includes(q);
+        case 'bank': return (c.bank?.bankName || '').toLowerCase().includes(q);
+        case 'user': return (c.issuer as any)?.username?.toLowerCase?.().includes(q) || false;
+        default: return true;
+      }
+    });
+  }, [checks, search, field]);
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
@@ -129,6 +149,28 @@ export default function CheckPrintingPage() {
           <CardDescription>
             Select checks to print or download as PDF
           </CardDescription>
+          {user?.role === 'ADMIN' && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <select
+                className="border rounded px-2 py-1 bg-background"
+                value={field}
+                onChange={(e) => setField(e.target.value as any)}
+              >
+                <option value="number">Check #</option>
+                <option value="vendor">Vendor</option>
+                <option value="amount">Amount</option>
+                <option value="status">Status</option>
+                <option value="bank">Bank</option>
+                <option value="user">User</option>
+              </select>
+              <input
+                className="border rounded px-3 py-1 flex-1 min-w-[220px] bg-background"
+                placeholder={`Search by ${field}`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -146,7 +188,7 @@ export default function CheckPrintingPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {checks.map((check) => (
+              {filtered.map((check) => (
                 <Card key={check.id} className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">

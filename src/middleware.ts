@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 
 /**
  * HTTPS Middleware for Next.js
@@ -116,6 +117,25 @@ function addSecurityHeaders(response: NextResponse, config: SecurityConfig): Nex
 // Main middleware function
 export function middleware(request: NextRequest) {
   const config = getSecurityConfig();
+  // Role-based route protection
+  const adminOnlyPaths = ['/reports', '/banks', '/users', '/user-management', '/admin'];
+  const urlPath = request.nextUrl.pathname;
+  const needsAdmin = adminOnlyPaths.some(p => urlPath.startsWith(p));
+
+  if (needsAdmin) {
+    const tokenCookie = request.cookies.get('auth-token')?.value;
+    if (!tokenCookie) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
+    try {
+      const decoded: any = jwt.verify(tokenCookie, process.env.JWT_SECRET as string);
+      if (decoded?.role !== 'ADMIN') {
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
+  }
   
   // Skip HTTPS redirection for development or if disabled
   if (!config.forceHttps) {

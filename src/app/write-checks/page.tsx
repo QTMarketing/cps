@@ -13,72 +13,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { FileText, CreditCard, DollarSign, Calendar, User, Building2, Zap, Receipt, Banknote } from "lucide-react";
-import FileUpload from "@/components/FileUpload";
+import InvoiceUploadWithQR from "@/components/invoices/InvoiceUploadWithQR";
 
-// Enhanced validation schema with conditional validation
+// Validation schema (number auto-assigned on backend)
 const paymentSchema = z.object({
   bankId: z.string().min(1, "Please select a bank"),
   paymentMethod: z.enum(["Cheque", "EDI", "MO", "Cash"]),
-  referenceNumber: z.string().optional(), // Now called referenceNumber
   vendorId: z.string().min(1, "Please select a vendor"),
   amount: z.string().min(1, "Amount is required"),
   memo: z.string().optional(),
-}).superRefine((data, ctx) => {
-  // CHECK: Reference number (check number) required
-  if (data.paymentMethod === "Cheque") {
-    if (!data.referenceNumber || data.referenceNumber.trim().length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Check number is required for check payments",
-        path: ["referenceNumber"],
-      });
-    } else if (data.referenceNumber.length > 20) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Check number must be 20 characters or less",
-        path: ["referenceNumber"],
-      });
-    }
-  }
-  
-  // MO: Reference number (money order number) required
-  if (data.paymentMethod === "MO") {
-    if (!data.referenceNumber || data.referenceNumber.trim().length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Money order number is required",
-        path: ["referenceNumber"],
-      });
-    } else if (data.referenceNumber.length > 30) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Money order number must be 30 characters or less",
-        path: ["referenceNumber"],
-      });
-    }
-  }
-  
-  // EDI: Optional but validate length if provided
-  if (data.paymentMethod === "EDI" && data.referenceNumber) {
-    if (data.referenceNumber.length > 50) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Transaction ID must be 50 characters or less",
-        path: ["referenceNumber"],
-      });
-    }
-  }
-  
-  // CASH: Optional but validate length if provided
-  if (data.paymentMethod === "Cash" && data.referenceNumber) {
-    if (data.referenceNumber.length > 30) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Receipt number must be 30 characters or less",
-        path: ["referenceNumber"],
-      });
-    }
-  }
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
@@ -122,7 +65,7 @@ export default function WriteChecksPage() {
   const [recentChecks, setRecentChecks] = useState<Cheque[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
 
   const {
     register,
@@ -141,6 +84,7 @@ export default function WriteChecksPage() {
   const watchedBankId = watch("bankId");
   const watchedAmount = watch("amount");
   const watchedPaymentMethod = watch("paymentMethod");
+  const [nextNumber, setNextNumber] = useState<string>("...");
 
   // Clear reference number when switching payment methods
   useEffect(() => {
@@ -187,72 +131,19 @@ export default function WriteChecksPage() {
     return bank?.bankName || 'Unknown Bank';
   };
 
-  // Render reference number field based on payment method
-  const renderReferenceField = () => {
-    const isRequired = watchedPaymentMethod === "Cheque" || watchedPaymentMethod === "MO";
-    
-    let label = "";
-    let placeholder = "";
-    let helperText = "";
-    
-    switch (watchedPaymentMethod) {
-      case "Cheque":
-        label = "Check Number";
-        placeholder = "Enter check number (e.g., 1001)";
-        helperText = "Physical check number from your checkbook";
-        break;
-      case "EDI":
-        label = "Transaction ID / Reference Number";
-        placeholder = "Enter EDI transaction ID (optional)";
-        helperText = "Electronic transfer reference number";
-        break;
-      case "MO":
-        label = "Money Order Number";
-        placeholder = "Enter money order number (e.g., MO-123456)";
-        helperText = "Number printed on the money order";
-        break;
-      case "Cash":
-        label = "Receipt Number";
-        placeholder = "Enter receipt number (optional)";
-        helperText = "Internal receipt number for cash payment";
-        break;
-      default:
-        return null;
-    }
-
-    return (
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">
-          {getPaymentIcon()} {label} {isRequired && <span className="text-red-500">*</span>}
-        </label>
-        <div className="flex gap-2">
-          <Input
-            {...register("referenceNumber")}
-            placeholder={placeholder}
-            className="flex-1"
-          />
-          {watchedPaymentMethod === "Cheque" && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                const newNumber = await generateUniqueCheckNumber();
-                setValue("referenceNumber", newNumber);
-              }}
-            >
-              Generate
-            </Button>
-          )}
-        </div>
-        {errors.referenceNumber && (
-          <p className="text-sm text-red-500">{errors.referenceNumber.message}</p>
-        )}
-        {helperText && (
-          <p className="text-xs text-muted-foreground">{helperText}</p>
-        )}
-      </div>
-    );
-  };
+  // Fetch next check number on mount and after submit
+  useEffect(() => {
+    const loadNext = async () => {
+      try {
+        const res = await fetch('/api/checks/next-number');
+        if (res.ok) {
+          const data = await res.json();
+          setNextNumber(data.next);
+        }
+      } catch {}
+    };
+    loadNext();
+  }, []);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -343,9 +234,8 @@ export default function WriteChecksPage() {
     }
   };
 
-  // File upload handling
-  const handleFilesUploaded = (files: any[]) => {
-    setUploadedFiles(files);
+  const handleInvoiceUploaded = (url: string) => {
+    setInvoiceUrl(url);
   };
 
   // Generate unique check number
@@ -404,6 +294,13 @@ export default function WriteChecksPage() {
         return;
       }
 
+      // Require invoice URL before creating check
+      if (!invoiceUrl) {
+        alert("Invoice is required. Please upload via desktop or phone.");
+        setIsSubmitting(false);
+        return;
+      }
+
       // Create check
       const checkData = {
         ...data,
@@ -411,6 +308,7 @@ export default function WriteChecksPage() {
         status: "Draft",
         issuedBy: "cmh4jy99u0002rgk2joxgi0vc", // Admin user ID
         storeId: "cmh4jy46p0000rgk2xx6ud5fx", // Main store ID
+        invoiceUrl,
       };
 
       const response = await fetch("/api/checks", {
@@ -425,10 +323,14 @@ export default function WriteChecksPage() {
       if (response.ok) {
         // Reset form
         reset();
-        setUploadedFiles([]);
+        setInvoiceUrl(null);
         
-        // Refresh recent checks
+        // Refresh next number and recent checks
         fetchData();
+        try {
+          const r = await fetch('/api/checks/next-number');
+          if (r.ok) { const d = await r.json(); setNextNumber(d.next); }
+        } catch {}
         
         alert("Cheque created successfully!");
       } else {
@@ -527,8 +429,12 @@ export default function WriteChecksPage() {
                 </Tabs>
               </div>
 
-              {/* Reference Number - Conditional Field */}
-              {renderReferenceField()}
+              {/* Next Check Number (Read-only) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Next Check Number</label>
+                <Input value={nextNumber} readOnly disabled />
+                <p className="text-xs text-muted-foreground">Automatically assigned by system</p>
+              </div>
 
               {/* Vendor Selection */}
               <div className="space-y-2">
@@ -587,19 +493,18 @@ export default function WriteChecksPage() {
                 )}
               </div>
 
-              {/* File Upload */}
+              {/* Invoice Upload (Required) */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Invoice/Attachments</label>
-                <FileUpload 
-                  onFilesUploaded={handleFilesUploaded}
-                  maxFiles={5}
-                  maxSize={10 * 1024 * 1024} // 10MB
-                />
+                <label className="text-sm font-medium text-foreground">Invoice <span className="text-red-500">*</span></label>
+                <InvoiceUploadWithQR required onUploaded={handleInvoiceUploaded} />
+                {!invoiceUrl && (
+                  <p className="text-xs text-muted-foreground">An invoice is required to submit the check.</p>
+                )}
               </div>
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-4">
-                <Button type="button" variant="outline" onClick={() => { reset(); setUploadedFiles([]); }}>
+                <Button type="button" variant="outline" onClick={() => { reset(); setInvoiceUrl(null); }}>
                   Reset
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>

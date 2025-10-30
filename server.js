@@ -20,6 +20,7 @@ const { parse } = require('url');
 const next = require('next');
 const helmet = require('helmet');
 const compression = require('compression');
+const { Server } = require('socket.io');
 
 // Load environment variables
 require('dotenv').config({ path: '.env.local' });
@@ -188,6 +189,30 @@ async function startServer() {
       }
     });
     
+    // Attach Socket.IO
+    const io = new Server(server, {
+      cors: { origin: '*'}
+    });
+
+    io.on('connection', (socket) => {
+      // Join a session room
+      socket.on('session:join', (sessionId) => {
+        socket.join(sessionId);
+        io.to(sessionId).emit('session:scanning');
+      });
+
+      // Receive uploaded image from mobile and forward to desktop
+      socket.on('invoice:upload', async (payload) => {
+        const { sessionId, imageData } = payload || {};
+        if (!sessionId || !imageData) return;
+        io.to(sessionId).emit('invoice:uploaded', { imageData });
+      });
+
+      socket.on('disconnect', () => {
+        // no-op
+      });
+    });
+
     // Start server
     server.listen(port, (err) => {
       if (err) {

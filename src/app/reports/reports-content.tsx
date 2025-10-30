@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import jsPDF from "jspdf";
+import InvoicePreviewModal from "@/components/invoices/InvoicePreviewModal";
 import "jspdf-autotable";
 
 
@@ -55,6 +56,7 @@ interface Check {
   issuedByUser?: {
     username: string;
   };
+  invoiceUrl?: string | null;
 }
 
 interface FilterState {
@@ -80,6 +82,8 @@ export default function ReportsContent() {
       to: endOfMonth(new Date()),
     },
   });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewCheck, setPreviewCheck] = useState<string | null>(null);
 
   // Fetch checks data
   useEffect(() => {
@@ -353,6 +357,27 @@ export default function ReportsContent() {
         );
       },
     }),
+    // Invoice Column
+    columnHelper.display({
+      id: 'invoice',
+      header: 'Invoice',
+      cell: ({ row }) => {
+        const c = row.original;
+        if (!c.invoiceUrl) {
+          return <span className="text-muted-foreground">No Invoice</span>;
+        }
+        return (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setPreviewUrl(c.invoiceUrl!); setPreviewCheck(c.referenceNumber || c.checkNumber || null); }}>
+              <Eye className="h-4 w-4 mr-1" /> View
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => downloadInvoice(c.invoiceUrl!, c.referenceNumber || c.checkNumber || 'invoice')}>
+              <Download className="h-4 w-4 mr-1" /> Download
+            </Button>
+          </div>
+        );
+      }
+    })
   ];
 
   // Initialize table
@@ -439,6 +464,24 @@ export default function ReportsContent() {
     });
 
     doc.save(`checks-report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+  };
+
+  const downloadInvoice = async (url: string, checkNo: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:.]/g,'-');
+      a.href = URL.createObjectURL(blob);
+      const ext = /pdf($|\?)/i.test(url) ? 'pdf' : 'jpg';
+      a.download = `invoice-${checkNo}-${ts}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      console.error('Download failed', e);
+      alert('Failed to download invoice');
+    }
   };
 
   const clearFilters = () => {
@@ -739,6 +782,13 @@ export default function ReportsContent() {
           )}
         </CardContent>
       </Card>
+
+      <InvoicePreviewModal
+        open={!!previewUrl}
+        onClose={() => { setPreviewUrl(null); setPreviewCheck(null); }}
+        invoiceUrl={previewUrl || ''}
+        checkNumber={previewCheck}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireMinimumRole } from '@/lib/rbac';
-import { Role } from '@/lib/rbac';
+import jwt from 'jsonwebtoken';
+import { Prisma } from '@prisma/client';
 
 // GET /api/checks - Get all checks
 export async function GET(request: NextRequest) {
@@ -16,12 +16,19 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1];
-    
-    // For now, let's try to fetch checks without complex relations to avoid decryption issues
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
+    const isAdmin = decoded?.role === 'ADMIN';
+
+    const whereClause = isAdmin ? {} : { issuedBy: decoded.userId };
+
     const checks = await prisma.check.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        bank: { select: { id: true, bankName: true } },
+        vendor: { select: { vendorName: true } },
+        issuedByUser: { select: { username: true } },
+      }
     });
 
     return NextResponse.json(checks);
@@ -47,54 +54,52 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { checkNumber, paymentMethod, bankId, vendorId, amount, memo, status, issuedBy } = body;
+    const { paymentMethod, bankId, vendorId, amount, memo, status, issuedBy } = body;
 
-    const check = await prisma.check.create({
-      data: {
-        checkNumber,
-        paymentMethod,
-        bankId,
-        vendorId,
-        amount,
-        memo,
-        status: status || 'ISSUED',
-        issuedBy,
-        payeeName: 'Unknown', // Add required payeeName field
-      } as any, // Use type assertion to bypass strict type checking
-      include: {
-        bank: {
-          select: {
-            id: true,
-            bankName: true,
-            balance: true,
-            accountType: true,
-            isActive: true,
+    // Compute next reference number safely with retry on unique violation
+    const createWithAutoNumber = async () => {
+      return await prisma.$transaction(async (tx) => {
+        const lastByRef = await tx.check.findFirst({
+          orderBy: { referenceNumber: 'desc' },
+          select: { referenceNumber: true }
+        });
+        const lastNum = lastByRef?.referenceNumber ? parseInt(String(lastByRef.referenceNumber).replace(/\D/g, ''), 10) : NaN;
+        const base = Number.isNaN(lastNum) ? 1000 : lastNum;
+        const nextRef = String(base + 1);
+
+        const created = await tx.check.create({
+          data: {
+            referenceNumber: nextRef,
+            paymentMethod,
+            bankId,
+            vendorId,
+            amount,
+            memo,
+            status: status || 'ISSUED',
+            issuedBy,
+            payeeName: 'Unknown',
+          } as any,
+          include: {
+            bank: { select: { id: true, bankName: true, balance: true, accountType: true, isActive: true } },
+            vendor: { select: { id: true, vendorName: true, vendorType: true, description: true, contactPerson: true, email: true, phone: true, address: true, isActive: true } },
+            issuedByUser: { select: { id: true, username: true, email: true, role: true, isActive: true } },
           },
-        },
-        vendor: {
-          select: {
-            id: true,
-            vendorName: true,
-            vendorType: true,
-            description: true,
-            contactPerson: true,
-            email: true,
-            phone: true,
-            address: true,
-            isActive: true,
-          },
-        },
-        issuedByUser: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-            isActive: true,
-          },
-        },
-      },
-    });
+        });
+        return created;
+      });
+    };
+
+    let check;
+    try {
+      check = await createWithAutoNumber();
+    } catch (e: any) {
+      // Retry once on unique constraint
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        check = await createWithAutoNumber();
+      } else {
+        throw e;
+      }
+    }
 
     return NextResponse.json(check, { status: 201 });
   } catch (error) {
