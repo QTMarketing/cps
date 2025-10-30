@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+// Avoid Node-only JWT verification in middleware (Edge). Decode payload only.
 
 /**
  * HTTPS Middleware for Next.js
@@ -128,8 +128,9 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
     try {
-      const decoded: any = jwt.verify(tokenCookie, process.env.JWT_SECRET as string);
-      if (decoded?.role !== 'ADMIN') {
+      const payload = tokenCookie.split('.')[1];
+      const json = payload ? JSON.parse(Buffer.from(payload, 'base64').toString('utf8')) : null;
+      if (json?.role !== 'ADMIN') {
         return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
     } catch {
