@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { PaymentMethod, CheckStatus, AccountType, Role, VendorType } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   try {
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
         username: 'admin',
         email: 'admin@qt-office.com',
         passwordHash: hashedPassword,
-        role: 'ADMIN',
+        role: Role.ADMIN,
         storeId: testStore.id,
         isActive: true,
       },
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
         bankName: 'First National Bank',
         accountNumber: '1234567890',
         routingNumber: '123456789',
-        accountType: 'CHECKING',
+        accountType: AccountType.CHECKING,
         storeId: testStore.id,
         balance: 50000.00,
         isActive: true,
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
     const testVendor = await prisma.vendor.create({
       data: {
         vendorName: 'ABC Office Supplies',
-        vendorType: 'MERCHANDISE',
+        vendorType: VendorType.MERCHANDISE,
         description: 'Office supplies and equipment',
         contactPerson: 'John Smith',
         email: 'john@abcoffice.com',
@@ -76,14 +77,14 @@ export async function GET(req: NextRequest) {
     console.log('📝 Creating test check with new schema...');
     const testCheck = await prisma.check.create({
       data: {
-        checkNumber: 'CHK001',
-        paymentMethod: 'CHECK',
+        referenceNumber: '1001',
+        paymentMethod: PaymentMethod.CHECK,
         bankId: testBank.id,
         vendorId: testVendor.id,
         payeeName: 'ABC Office Supplies',
         amount: 1500.00,
         memo: 'Office supplies payment',
-        status: 'ISSUED',
+        status: CheckStatus.ISSUED,
         issuedBy: testUser.id,
       },
     });
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
       data: {
         checkId: testCheck.id,
         action: 'CREATED',
-        status: 'ISSUED',
+        status: CheckStatus.ISSUED,
         performedBy: testUser.id,
         changes: { amount: 1500.00, status: 'ISSUED' },
         reason: 'Initial check creation',
@@ -111,7 +112,7 @@ export async function GET(req: NextRequest) {
         entityType: 'Check',
         entityId: testCheck.id,
         oldValues: null,
-        newValues: { checkNumber: 'CHK001', amount: 1500.00 },
+        newValues: { referenceNumber: '1001', amount: 1500.00 },
         ipAddress: '127.0.0.1',
         userAgent: 'Schema Test',
       },
@@ -134,12 +135,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Updated Prisma schema test successful!',
-      database: {
-        provider: 'Supabase',
-        host: 'db.uznzmoulrdzyfpshnixx.supabase.co',
-        port: 5432,
-        database: 'postgres',
-      },
+      database: 'ok',
       schema: {
         version: 'Improved Schema v2.0',
         features: [
@@ -157,7 +153,7 @@ export async function GET(req: NextRequest) {
         user: { id: testUser.id, username: testUser.username, role: testUser.role },
         bank: { id: testBank.id, bankName: testBank.bankName, accountType: testBank.accountType },
         vendor: { id: testVendor.id, vendorName: testVendor.vendorName, vendorType: testVendor.vendorType },
-        check: { id: testCheck.id, checkNumber: testCheck.checkNumber, status: testCheck.status },
+        check: { id: testCheck.id, referenceNumber: testCheck.referenceNumber, status: testCheck.status },
         history: { id: testHistory.id, action: testHistory.action },
         auditLog: { id: testAuditLog.id, action: testAuditLog.action },
       },
@@ -178,17 +174,7 @@ export async function GET(req: NextRequest) {
     console.error('❌ Updated schema test failed:', error);
     
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Updated schema test failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        database: {
-          provider: 'Supabase',
-          host: 'db.uznzmoulrdzyfpshnixx.supabase.co',
-          port: 5432,
-          database: 'postgres',
-        },
-      },
+      { success: false, error: 'Updated schema test failed', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
