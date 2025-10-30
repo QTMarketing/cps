@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Printer, FileText } from "lucide-react";
 import CheckPrint from "@/components/CheckPrintComponent";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface Check {
   id: string;
@@ -38,10 +37,23 @@ export default function CheckPrintingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [field, setField] = useState<'number'|'vendor'|'amount'|'status'|'bank'|'user'>('number');
-  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetchChecks();
+    // derive role from JWT (avoid AuthContext during prerender)
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(r => r.startsWith('auth-token='))
+        ?.split('=')[1];
+      if (token) {
+        const payload = JSON.parse(typeof atob !== 'undefined' ? atob(token.split('.')[1]) : Buffer.from(token.split('.')[1], 'base64').toString());
+        setIsAdmin(payload?.role === 'ADMIN');
+      }
+    } catch {
+      setIsAdmin(false);
+    }
   }, []);
 
   const fetchChecks = async () => {
@@ -149,7 +161,7 @@ export default function CheckPrintingPage() {
           <CardDescription>
             Select checks to print or download as PDF
           </CardDescription>
-          {user?.role === 'ADMIN' && (
+          {isAdmin && (
             <div className="mt-4 flex flex-wrap gap-2">
               <select
                 className="border rounded px-2 py-1 bg-background"
