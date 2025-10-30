@@ -86,16 +86,11 @@ export default function WriteChecksPage() {
   const watchedPaymentMethod = watch("paymentMethod");
   const [nextNumber, setNextNumber] = useState<string>("...");
 
-  // Clear reference number when switching payment methods
+  // No-op effect retained for future paymentMethod side-effects
   useEffect(() => {
-    const subscription = watch((value, { name }) => {
-      if (name === "paymentMethod") {
-        // Clear reference number when switching methods
-        setValue("referenceNumber", "");
-      }
-    });
+    const subscription = watch(() => {});
     return () => subscription.unsubscribe();
-  }, [watch, setValue]);
+  }, [watch]);
 
   // Helper functions
   const getPaymentIcon = () => {
