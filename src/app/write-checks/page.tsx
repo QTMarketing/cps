@@ -140,6 +140,22 @@ export default function WriteChecksPage() {
     loadNext();
   }, []);
 
+  // Refresh next number when bank changes (and when form relevant fields change)
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const res = await fetch('/api/checks/next-number');
+        if (res.ok) {
+          const data = await res.json();
+          setNextNumber(data.next);
+        }
+      } catch {}
+    };
+    if (watchedBankId) {
+      void refresh();
+    }
+  }, [watchedBankId]);
+
   // Fetch data on component mount
   useEffect(() => {
     fetchData();
@@ -502,7 +518,7 @@ export default function WriteChecksPage() {
                 <Button type="button" variant="outline" onClick={() => { reset(); setInvoiceUrl(null); }}>
                   Reset
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || !invoiceUrl}>
                   {isSubmitting ? "Submitting..." : "Submit"}
                 </Button>
               </div>

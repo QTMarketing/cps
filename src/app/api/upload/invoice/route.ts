@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'invoices');
+    // Save under public so it's web-accessible in local/server environments
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'invoices');
     await fs.mkdir(uploadsDir, { recursive: true });
     const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg';
     const filename = `invoice-${Date.now()}.${ext}`;
