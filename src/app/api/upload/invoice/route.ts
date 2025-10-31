@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { hasS3Config, putObject } from '@/lib/s3';
+export const runtime = 'nodejs';
 
 export const runtime = 'nodejs';
 
@@ -26,9 +27,14 @@ export async function POST(req: NextRequest) {
 
     // Prefer S3 when configured (Vercel/prod). Fallback to local for dev.
     if (hasS3Config) {
-      const key = `invoices/${filename}`;
-      const url = await putObject({ key, contentType: file.type, body: buffer, acl: 'public-read' });
-      return NextResponse.json({ url });
+      try {
+        const key = `invoices/${filename}`;
+        // Prefer bucket policy over ACLs (handles buckets with ACLs disabled)
+        const url = await putObject({ key, contentType: file.type, body: buffer });
+        return NextResponse.json({ url });
+      } catch (err: any) {
+        return NextResponse.json({ error: 'S3 upload failed', details: err?.message || String(err) }, { status: 500 });
+      }
     }
 
     // Local filesystem fallback (development only)
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
     const publicUrl = `/uploads/invoices/${filename}`;
     return NextResponse.json({ url: publicUrl });
   } catch (e: any) {
-    return NextResponse.json({ error: 'Upload failed', details: e?.message }, { status: 500 });
+    return NextResponse.json({ error: 'Upload failed', details: e?.message || String(e) }, { status: 500 });
   }
 }
 

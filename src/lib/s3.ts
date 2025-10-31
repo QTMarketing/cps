@@ -30,15 +30,23 @@ export async function putObject(params: {
   acl?: "private" | "public-read";
 }): Promise<string> {
   const client = getS3Client();
-  await client.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: params.key,
-      Body: params.body,
-      ContentType: params.contentType,
-      ACL: params.acl || "public-read",
-    })
-  );
+  const base = {
+    Bucket: BUCKET,
+    Key: params.key,
+    Body: params.body,
+    ContentType: params.contentType,
+  } as any;
+  const withAcl = params.acl ? { ...base, ACL: params.acl } : base;
+  try {
+    await client.send(new PutObjectCommand(withAcl));
+  } catch (err: any) {
+    // If bucket has ACLs disabled, retry without ACL silently
+    if (withAcl.ACL) {
+      await client.send(new PutObjectCommand(base));
+    } else {
+      throw err;
+    }
+  }
   // Build public URL
   if (PUBLIC_BASE) return `${PUBLIC_BASE.replace(/\/$/, "")}/${params.key}`;
   return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${params.key}`;
