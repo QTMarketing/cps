@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { Prisma } from '@prisma/client';
+export const runtime = 'nodejs';
 
 // GET /api/checks - Get all checks
 export async function GET(request: NextRequest) {

@@ -118,7 +118,7 @@ function addSecurityHeaders(response: NextResponse, config: SecurityConfig): Nex
 export function middleware(request: NextRequest) {
   const config = getSecurityConfig();
   // Role-based route protection
-  const adminOnlyPaths = ['/reports', '/banks', '/users', '/user-management', '/admin'];
+  const adminOnlyPaths = ['/reports', '/banks', '/users', '/user-management', '/admin', '/file-management'];
   const urlPath = request.nextUrl.pathname;
   const needsAdmin = adminOnlyPaths.some(p => urlPath.startsWith(p));
 
@@ -129,7 +129,17 @@ export function middleware(request: NextRequest) {
     }
     try {
       const payload = tokenCookie.split('.')[1];
-      const json = payload ? JSON.parse(Buffer.from(payload, 'base64').toString('utf8')) : null;
+      let json: any = null;
+      if (payload) {
+        try {
+          // Prefer atob in Edge; fallback to Buffer when available
+          // @ts-ignore
+          const decoded = typeof atob !== 'undefined' ? atob(payload) : Buffer.from(payload, 'base64').toString('utf8');
+          json = JSON.parse(decoded);
+        } catch (_) {
+          json = null;
+        }
+      }
       if (json?.role !== 'ADMIN') {
         return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
