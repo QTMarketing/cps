@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { FileText, CreditCard, DollarSign, Calendar, User, Building2, Zap, Receipt, Banknote } from "lucide-react";
-import InvoiceUploadWithQR from "@/components/invoices/InvoiceUploadWithQR";
+import InvoiceUpload from "@/components/invoices/InvoiceUpload";
 
 // Validation schema (number auto-assigned on backend)
 const paymentSchema = z.object({
@@ -507,7 +507,7 @@ export default function WriteChecksPage() {
               {/* Invoice Upload (Required) */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Invoice <span className="text-red-500">*</span></label>
-                <InvoiceUploadWithQR required onUploaded={handleInvoiceUploaded} />
+                <InvoiceUpload required onUploaded={handleInvoiceUploaded} />
                 {!invoiceUrl && (
                   <p className="text-xs text-muted-foreground">An invoice is required to submit the check.</p>
                 )}

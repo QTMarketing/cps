@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { paymentMethod, bankId, vendorId, amount, memo, status, issuedBy } = body;
+    const { paymentMethod, bankId, vendorId, amount, memo, status, issuedBy, invoiceUrl } = body;
 
     // Compute next reference number safely with retry on unique violation
     const createWithAutoNumber = async () => {
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
             vendorId,
             amount,
             memo,
+            invoiceUrl,
             status: status || 'ISSUED',
             issuedBy,
             payeeName: 'Unknown',
