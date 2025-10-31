@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { hasS3Config, putObject } from '@/lib/s3';
 
 export const runtime = 'nodejs';
 
@@ -20,14 +21,21 @@ export async function POST(req: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    // Save under public so it's web-accessible in local/server environments
+    const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg';
+    const filename = `invoice-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+    // Prefer S3 when configured (Vercel/prod). Fallback to local for dev.
+    if (hasS3Config) {
+      const key = `invoices/${filename}`;
+      const url = await putObject({ key, contentType: file.type, body: buffer, acl: 'public-read' });
+      return NextResponse.json({ url });
+    }
+
+    // Local filesystem fallback (development only)
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'invoices');
     await fs.mkdir(uploadsDir, { recursive: true });
-    const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg';
-    const filename = `invoice-${Date.now()}.${ext}`;
     const filePath = path.join(uploadsDir, filename);
     await fs.writeFile(filePath, buffer);
-
     const publicUrl = `/uploads/invoices/${filename}`;
     return NextResponse.json({ url: publicUrl });
   } catch (e: any) {
