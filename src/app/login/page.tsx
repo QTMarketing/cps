@@ -35,7 +35,7 @@ export default function LoginPage() {
         const cookieValue = `auth-token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
         document.cookie = cookieValue;
         console.log("Login successful, token saved to cookie");
-        router.push("/");
+        router.push("/write-checks");
       } else {
         const errorData = await response.json();
         setError(errorData.error || "Login failed");
