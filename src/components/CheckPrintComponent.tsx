@@ -335,7 +335,11 @@ export default function CheckPrint({ check, onPrint }: CheckPrintProps) {
       {/* Preview Button */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setIsPreviewOpen(true)}
+          >
             <Eye className="mr-2 h-4 w-4" />
             Preview
           </Button>
@@ -343,7 +347,7 @@ export default function CheckPrint({ check, onPrint }: CheckPrintProps) {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              Check Preview - #{check.checkNumber}
+              Check Preview - #{check.referenceNumber || check.checkNumber || 'N/A'}
             </DialogTitle>
             <DialogDescription>
               Preview of the check before printing
@@ -351,9 +355,9 @@ export default function CheckPrint({ check, onPrint }: CheckPrintProps) {
           </DialogHeader>
           
           {/* Check Preview */}
-          <div className="bg-white border-2 border-gray-300 p-4 mx-auto" style={{ width: "8.5in", height: "3.5in" }}>
+          <div className="bg-white border-2 border-gray-300 p-4 mx-auto relative" style={{ width: "8.5in", height: "3.5in" }}>
             {/* Status Badge */}
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
               <Badge variant="secondary" className="text-xs">
                 {check.status}
               </Badge>
