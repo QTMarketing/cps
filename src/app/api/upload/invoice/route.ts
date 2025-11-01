@@ -4,8 +4,6 @@ import path from 'path';
 import { hasS3Config, putObject } from '@/lib/s3';
 export const runtime = 'nodejs';
 
-export const runtime = 'nodejs';
-
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
