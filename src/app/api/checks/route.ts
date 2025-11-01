@@ -54,8 +54,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const token = authHeader.split(' ')[1];
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
+    const userId = decoded?.userId || decoded?.id;
+
     const body = await request.json();
-    const { paymentMethod, bankId, vendorId, amount, memo, status, issuedBy, invoiceUrl } = body;
+    const { paymentMethod, bankId, vendorId, amount, memo, status, invoiceUrl } = body;
+
+    // Map frontend enum values to Prisma enum values
+    const paymentMethodMap: Record<string, string> = {
+      'Cheque': 'CHECK',
+      'EDI': 'EDI',
+      'MO': 'MO',
+      'Cash': 'CASH'
+    };
+
+    const statusMap: Record<string, string> = {
+      'Draft': 'DRAFT',
+      'Issued': 'ISSUED',
+      'Cleared': 'CLEARED',
+      'Void': 'VOID',
+      'Cancelled': 'CANCELLED'
+    };
+
+    const mappedPaymentMethod = paymentMethodMap[paymentMethod] || paymentMethod;
+    const mappedStatus = statusMap[status] || status || 'DRAFT';
 
     // Compute next reference number safely with retry on unique violation
     const createWithAutoNumber = async () => {
@@ -71,14 +94,14 @@ export async function POST(request: NextRequest) {
         const created = await tx.check.create({
           data: {
             referenceNumber: nextRef,
-            paymentMethod,
+            paymentMethod: mappedPaymentMethod as any,
             bankId,
             vendorId,
             amount,
             memo,
             invoiceUrl,
-            status: status || 'ISSUED',
-            issuedBy,
+            status: mappedStatus as any,
+            issuedBy: userId,
             payeeName: 'Unknown',
           } as any,
           include: {

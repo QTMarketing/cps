@@ -317,8 +317,6 @@ export default function WriteChecksPage() {
         ...data,
         amount: parseFloat(data.amount),
         status: "Draft",
-        issuedBy: "cmh4jy99u0002rgk2joxgi0vc", // Admin user ID
-        storeId: "cmh4jy46p0000rgk2xx6ud5fx", // Main store ID
         invoiceUrl,
       };
 
