@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       include: {
-        bank: { select: { id: true, bankName: true } },
+        bank: { select: { id: true, bankName: true, store: { select: { name: true } } } },
         vendor: { select: { vendorName: true } },
         issuedByUser: { select: { username: true } },
       }

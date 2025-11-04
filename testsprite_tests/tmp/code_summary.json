@@ -1,0 +1,344 @@
+{
+  "project_name": "Check Printing System (CPS)",
+  "project_type": "Full-stack web application",
+  "tech_stack": {
+    "frontend": {
+      "framework": "Next.js 15.5.6",
+      "language": "TypeScript",
+      "styling": "Tailwind CSS",
+      "ui_libraries": [
+        "Radix UI",
+        "Shadcn UI",
+        "Lucide React",
+        "React Hook Form",
+        "Zod"
+      ],
+      "state_management": "React Context API",
+      "routing": "Next.js App Router"
+    },
+    "backend": {
+      "framework": "Next.js API Routes",
+      "runtime": "Node.js",
+      "language": "TypeScript",
+      "authentication": "JWT (jsonwebtoken)",
+      "authorization": "RBAC (Role-Based Access Control)",
+      "validation": "Zod"
+    },
+    "database": {
+      "type": "PostgreSQL",
+      "orm": "Prisma",
+      "provider": "AWS Lightsail PostgreSQL"
+    },
+    "storage": {
+      "file_storage": "AWS S3",
+      "location": "Asia Pacific (Mumbai) ap-south-1"
+    },
+    "infrastructure": {
+      "deployment": "Vercel",
+      "server": "Custom Node.js server with Express"
+    },
+    "security": {
+      "encryption": "bcryptjs for password hashing",
+      "data_encryption": "Prisma middleware for sensitive fields",
+      "ssl": "Required for database connections"
+    }
+  },
+  "features": {
+    "user_management": {
+      "description": "Multi-role user system with role-based access control",
+      "roles": ["ADMIN", "MANAGER", "USER"],
+      "permissions": "Granular permission system via RBAC",
+      "features": [
+        "User creation, update, deletion",
+        "Password management",
+        "Role assignment",
+        "Store association",
+        "Active/inactive status"
+      ]
+    },
+    "store_management": {
+      "description": "Multi-store support for organizations with multiple locations",
+      "features": [
+        "Store creation and management",
+        "Store address and contact information",
+        "User association with stores",
+        "Bank and vendor association with stores"
+      ]
+    },
+    "bank_management": {
+      "description": "Multiple bank accounts management per store",
+      "features": [
+        "Bank account creation and management",
+        "Encrypted account and routing numbers",
+        "Balance tracking",
+        "Account type (Checking/Savings)",
+        "Active/inactive status",
+        "Check association"
+      ],
+      "security": "Sensitive data encrypted at database level"
+    },
+    "vendor_management": {
+      "description": "Vendor information and categorization system",
+      "vendor_types": ["MERCHANDISE", "EXPENSE", "EMPLOYEE"],
+      "features": [
+        "Vendor creation and management",
+        "Contact information (person, email, phone, address)",
+        "Vendor categorization",
+        "Store association",
+        "Active/inactive status",
+        "Check association"
+      ]
+    },
+    "check_processing": {
+      "description": "Complete check lifecycle management system",
+      "payment_methods": ["CHECK", "EDI", "MO", "CASH"],
+      "status_lifecycle": ["DRAFT", "ISSUED", "CLEARED", "VOID", "CANCELLED"],
+      "features": [
+        "Auto-incrementing check numbers (starting from 1001)",
+        "Check creation with invoice upload",
+        "PDF generation for checks",
+        "Check printing",
+        "Check preview",
+        "Check history tracking",
+        "Void/cancel functionality",
+        "Amount tracking in words",
+        "Bank balance validation"
+      ],
+      "invoice_integration": {
+        "description": "Invoice upload and management",
+        "supported_formats": ["PNG", "JPG", "PDF"],
+        "storage": "AWS S3 or local filesystem",
+        "features": [
+          "Desktop file upload",
+          "Invoice attachment to checks",
+          "Admin viewing and downloading",
+          "File validation (type and size)"
+        ]
+      }
+    },
+    "reports": {
+      "description": "Comprehensive reporting and analytics",
+      "features": [
+        "Check reports with filtering",
+        "Invoice viewing and downloading (admin only)",
+        "Export to CSV and PDF",
+        "Quick statistics (total checks, invoices, coverage)",
+        "Multi-field search (admin only)",
+        "Date range filtering",
+        "Status filtering",
+        "Vendor filtering",
+        "Bank filtering"
+      ]
+    },
+    "audit_logging": {
+      "description": "Comprehensive activity tracking and audit logging",
+      "features": [
+        "Action tracking (CREATE, UPDATE, DELETE, VIEW)",
+        "User activity logging",
+        "IP address and user agent tracking",
+        "Before/after value tracking",
+        "Export functionality",
+        "Search and filtering"
+      ],
+      "entity_types": ["User", "Store", "Bank", "Vendor", "Check", "AuditLog"]
+    },
+    "authentication_and_authorization": {
+      "description": "Secure authentication and role-based access control",
+      "features": [
+        "JWT-based authentication",
+        "Cookie-based token storage",
+        "Role-based access control (RBAC)",
+        "Permission-based authorization",
+        "Re-authentication for sensitive operations",
+        "Protected API routes",
+        "Middleware-based route protection"
+      ],
+      "security_features": [
+        "Password hashing with bcryptjs",
+        "Secure token expiration",
+        "IP address tracking",
+        "User agent tracking",
+        "Session management"
+      ]
+    },
+    "file_management": {
+      "description": "File upload and management system",
+      "features": [
+        "Invoice upload",
+        "File validation",
+        "AWS S3 integration",
+        "Public URL generation",
+        "File download"
+      ]
+    }
+  },
+  "api_endpoints": {
+    "authentication": [
+      "POST /api/auth/login",
+      "POST /api/auth/logout",
+      "GET /api/auth/me",
+      "POST /api/auth/verify-password"
+    ],
+    "users": [
+      "GET /api/users",
+      "POST /api/users",
+      "GET /api/users/[id]",
+      "PUT /api/users/[id]",
+      "DELETE /api/users/[id]",
+      "PATCH /api/users/[id]/password"
+    ],
+    "stores": [
+      "GET /api/stores",
+      "POST /api/stores",
+      "GET /api/stores/[id]",
+      "PUT /api/stores/[id]",
+      "DELETE /api/stores/[id]"
+    ],
+    "banks": [
+      "GET /api/banks",
+      "POST /api/banks",
+      "GET /api/banks/[id]",
+      "PUT /api/banks/[id]",
+      "DELETE /api/banks/[id]"
+    ],
+    "vendors": [
+      "GET /api/vendors",
+      "POST /api/vendors",
+      "GET /api/vendors/[id]",
+      "PUT /api/vendors/[id]",
+      "DELETE /api/vendors/[id]"
+    ],
+    "checks": [
+      "GET /api/checks",
+      "POST /api/checks",
+      "GET /api/checks/[id]",
+      "PUT /api/checks/[id]",
+      "DELETE /api/checks/[id]",
+      "GET /api/checks/next-number"
+    ],
+    "upload": [
+      "POST /api/upload/invoice"
+    ],
+    "audit": [
+      "GET /api/audit-logs",
+      "POST /api/audit-logs"
+    ]
+  },
+  "pages_and_routes": {
+    "public": [
+      "/login"
+    ],
+    "protected": [
+      "/write-checks",
+      "/reports",
+      "/add-vendor",
+      "/add-user",
+      "/add-bank",
+      "/check-print",
+      "/user-management",
+      "/file-management"
+    ],
+    "admin_only": [
+      "/reports",
+      "/add-bank",
+      "/add-user",
+      "/user-management",
+      "/file-management"
+    ]
+  },
+  "database_schema": {
+    "models": [
+      "User",
+      "Store",
+      "Bank",
+      "Vendor",
+      "Check",
+      "CheckHistory",
+      "AuditLog"
+    ],
+    "enums": [
+      "Role (ADMIN, MANAGER, USER)",
+      "VendorType (MERCHANDISE, EXPENSE, EMPLOYEE)",
+      "PaymentMethod (CHECK, EDI, MO, CASH)",
+      "AccountType (CHECKING, SAVINGS)",
+      "CheckStatus (DRAFT, ISSUED, CLEARED, VOID, CANCELLED)"
+    ]
+  },
+  "security_features": {
+    "authentication": [
+      "JWT token-based authentication",
+      "Secure password hashing (bcryptjs)",
+      "Cookie-based token storage",
+      "Token expiration handling"
+    ],
+    "authorization": [
+      "Role-based access control (RBAC)",
+      "Permission-based authorization",
+      "Middleware-based route protection",
+      "API route protection",
+      "Re-authentication for sensitive operations"
+    ],
+    "data_protection": [
+      "Encrypted sensitive fields (bank account numbers, routing numbers)",
+      "Prisma middleware for encryption",
+      "Secure data transmission (HTTPS)",
+      "SSL database connections"
+    ],
+    "audit_and_compliance": [
+      "Comprehensive audit logging",
+      "IP address tracking",
+      "User agent tracking",
+      "Action history tracking",
+      "Before/after value tracking"
+    ]
+  },
+  "deployment": {
+    "platform": "Vercel",
+    "database": "AWS Lightsail PostgreSQL",
+    "storage": "AWS S3",
+    "environment_variables": [
+      "DATABASE_URL",
+      "DIRECT_URL",
+      "JWT_SECRET",
+      "SESSION_SECRET",
+      "ENCRYPTION_KEY",
+      "S3_REGION",
+      "S3_BUCKET",
+      "S3_ACCESS_KEY_ID",
+      "S3_SECRET_ACCESS_KEY",
+      "S3_PUBLIC_URL",
+      "NEXT_PUBLIC_APP_URL",
+      "NEXT_PUBLIC_SOCKET_URL"
+    ]
+  },
+  "testing_considerations": {
+    "frontend": [
+      "React component testing",
+      "Form validation testing",
+      "UI interaction testing",
+      "Role-based UI rendering",
+      "Authentication flow testing",
+      "File upload testing",
+      "PDF generation testing"
+    ],
+    "backend": [
+      "API endpoint testing",
+      "Authentication testing",
+      "Authorization testing (RBAC)",
+      "Database operation testing",
+      "File upload testing",
+      "S3 integration testing",
+      "Encryption testing",
+      "Audit logging testing"
+    ],
+    "integration": [
+      "End-to-end user flows",
+      "Multi-role access testing",
+      "Database transaction testing",
+      "File upload workflow",
+      "Check creation workflow",
+      "Report generation workflow"
+    ]
+  }
+}
+

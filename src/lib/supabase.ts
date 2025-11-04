@@ -1,12 +1,33 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uznzmoulrdzyfpshnixx.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bnptb3VscmR6eWZwc2huaXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzOTM1MjQsImV4cCI6MjA3Njk2OTUyNH0.kxe7XV4IRQDuHLtYLuE2CUVbnsJlwK8kfso4tn8tbeI'
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bnptb3VscmR6eWZwc2huaXh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTM5MzUyNCwiZXhwIjoyMDc2OTY5NTI0fQ.WORItj1mWcCwkScAF7xxBiqMrjE0Uy-UAiZuu87hQxA'
 
-// Create Supabase client for client-side use (with anon key)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Ensure singletons in the browser to avoid multiple GoTrueClient instances
+declare global {
+  // eslint-disable-next-line no-var
+  var __cps_supabase__: SupabaseClient | undefined;
+  // eslint-disable-next-line no-var
+  var __cps_supabase_typed__: SupabaseClient<Database> | undefined;
+}
+
+function createBrowserClient() {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storageKey: 'cps-auth',
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
+}
+
+// Create or reuse singleton Supabase client for client-side use (with anon key)
+export const supabase: SupabaseClient =
+  typeof window === 'undefined'
+    ? createBrowserClient()
+    : (globalThis.__cps_supabase__ ||= createBrowserClient());
 
 // Create Supabase client for server-side use (with service role key)
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -265,7 +286,10 @@ export type Database = {
 }
 
 // Export typed Supabase clients
-export const typedSupabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+export const typedSupabase: SupabaseClient<Database> =
+  typeof window === 'undefined'
+    ? (createClient as any)<Database>(supabaseUrl, supabaseAnonKey, { auth: { storageKey: 'cps-auth', persistSession: true, autoRefreshToken: true } })
+    : (globalThis.__cps_supabase_typed__ ||= (createClient as any)<Database>(supabaseUrl, supabaseAnonKey, { auth: { storageKey: 'cps-auth', persistSession: true, autoRefreshToken: true } }));
 export const typedSupabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,

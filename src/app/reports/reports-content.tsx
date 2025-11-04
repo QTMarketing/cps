@@ -31,7 +31,9 @@ import {
   ChevronDown,
   ChevronsUpDown,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Filter as FilterIcon,
+  Columns as ColumnsIcon
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import jsPDF from "jspdf";
@@ -50,6 +52,7 @@ interface Check {
   createdAt: string;
   bank?: {
     bankName: string;
+    store?: { name: string };
   };
   vendor?: {
     vendorName: string;
@@ -75,6 +78,7 @@ export default function ReportsContent() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const [filters, setFilters] = useState<FilterState>({
     searchTerm: "",
     paymentMethod: "all",
@@ -184,7 +188,7 @@ export default function ReportsContent() {
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="h-8 px-2 lg:px-3"
         >
-          Date
+          Created Date
           {column.getIsSorted() === "asc" ? (
             <ChevronUp className="ml-2 h-4 w-4" />
           ) : column.getIsSorted() === "desc" ? (
@@ -207,26 +211,7 @@ export default function ReportsContent() {
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="h-8 px-2 lg:px-3"
         >
-          Check #
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUp className="ml-2 h-4 w-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDown className="ml-2 h-4 w-4" />
-          ) : (
-            <ChevronsUpDown className="ml-2 h-4 w-4" />
-          )}
-        </Button>
-      ),
-      cell: ({ getValue }) => getValue(),
-    }),
-    columnHelper.accessor("paymentMethod", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-2 lg:px-3"
-        >
-          Description
+          Check Number
           {column.getIsSorted() === "asc" ? (
             <ChevronUp className="ml-2 h-4 w-4" />
           ) : column.getIsSorted() === "desc" ? (
@@ -246,7 +231,27 @@ export default function ReportsContent() {
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="h-8 px-2 lg:px-3"
         >
-          Payee
+          Vendors
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUp className="ml-2 h-4 w-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDown className="ml-2 h-4 w-4" />
+          ) : (
+            <ChevronsUpDown className="ml-2 h-4 w-4" />
+          )}
+        </Button>
+      ),
+      cell: ({ getValue }) => getValue(),
+    }),
+    columnHelper.accessor((row) => row.bank?.store?.name || 'Unknown Store', {
+      id: "storeName",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="h-8 px-2 lg:px-3"
+        >
+          Store
           {column.getIsSorted() === "asc" ? (
             <ChevronUp className="ml-2 h-4 w-4" />
           ) : column.getIsSorted() === "desc" ? (
@@ -316,48 +321,6 @@ export default function ReportsContent() {
       ),
       cell: ({ getValue }) => getValue(),
     }),
-    columnHelper.accessor("status", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-2 lg:px-3"
-        >
-          Status
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUp className="ml-2 h-4 w-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDown className="ml-2 h-4 w-4" />
-          ) : (
-            <ChevronsUpDown className="ml-2 h-4 w-4" />
-          )}
-        </Button>
-      ),
-      cell: ({ getValue }) => {
-        const status = getValue();
-        const getStatusColor = (status: string) => {
-          switch (status) {
-            case "Draft":
-              return "bg-gray-100 text-gray-800";
-            case "Submitted":
-              return "bg-blue-100 text-blue-800";
-            case "Approved":
-              return "bg-green-100 text-green-800";
-            case "Printed":
-              return "bg-purple-100 text-purple-800";
-            case "Reconciled":
-              return "bg-green-100 text-green-800";
-            default:
-              return "bg-gray-100 text-gray-800";
-          }
-        };
-        return (
-          <Badge className={getStatusColor(status)}>
-            {status}
-          </Badge>
-        );
-      },
-    }),
     // Invoice Column
     columnHelper.display({
       id: 'invoice',
@@ -392,10 +355,12 @@ export default function ReportsContent() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnVisibilityChange: setColumnVisibility,
     state: {
       sorting,
       columnFilters,
       globalFilter,
+      columnVisibility,
     },
     initialState: {
       pagination: {
@@ -406,18 +371,18 @@ export default function ReportsContent() {
 
   // Export functions
   const exportToCSV = () => {
-    const headers = ["Date", "Check #", "Description", "Payee", "Amount", "Memo", "User", "Status"];
+    const headers = ["Created Date", "Check Number", "Vendors", "Store", "Amount", "Memo", "User", "Invoice"];
     const csvContent = [
       headers.join(","),
       ...filteredData.map((check) => [
         format(new Date(check.createdAt), "MMM dd, yyyy"),
         check.referenceNumber || check.checkNumber || 'N/A',
-        check.paymentMethod,
         check.vendor?.vendorName || 'Unknown Vendor',
+        check.bank?.store?.name || 'Unknown Store',
         Number(check.amount),
         check.memo || "",
         check.issuedByUser?.username || 'Unknown',
-        check.status,
+        check.invoiceUrl ? check.invoiceUrl : 'No Invoice',
       ].join(","))
     ].join("\n");
 
@@ -448,16 +413,16 @@ export default function ReportsContent() {
     const tableData = filteredData.map((check) => [
       format(new Date(check.createdAt), "MMM dd, yyyy"),
       check.referenceNumber || check.checkNumber || 'N/A',
-      check.paymentMethod,
       check.vendor?.vendorName || 'Unknown Vendor',
+      check.bank?.store?.name || 'Unknown Store',
       `$${Number(check.amount).toFixed(2)}`,
       check.memo || "",
       check.issuedByUser?.username || 'Unknown',
-      check.status,
+      check.invoiceUrl ? 'Yes' : 'No',
     ]);
 
     (doc as any).autoTable({
-      head: [["Date", "Check #", "Description", "Payee", "Amount", "Memo", "User", "Status"]],
+      head: [["Created Date", "Check Number", "Vendors", "Store", "Amount", "Memo", "User", "Invoice"]],
       body: tableData,
       startY: 40,
       styles: { fontSize: 8 },
@@ -501,9 +466,38 @@ export default function ReportsContent() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Reports</h1>
-        <p className="text-muted-foreground mt-2">View and analyze check transactions</p>
+      {/* Top toolbar */}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold text-foreground">Reports</h1>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="pl-9 w-64"
+            />
+          </div>
+          <Button onClick={exportToCSV}>Download all</Button>
+          <details className="relative">
+            <summary className="list-none">
+              <Button variant="outline"><ColumnsIcon className="h-4 w-4 mr-2" /> Columns</Button>
+            </summary>
+            <div className="absolute right-0 mt-2 w-56 rounded-md border bg-popover p-2 shadow">
+              {table.getAllLeafColumns().map((col) => (
+                <label key={col.id} className="flex items-center gap-2 py-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={col.getIsVisible()}
+                    onChange={(e) => col.toggleVisibility(e.target.checked)}
+                  />
+                  {col.columnDef.header && typeof col.columnDef.header === 'function' ? col.id : String(col.columnDef.header)}
+                </label>
+              ))}
+            </div>
+          </details>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -704,7 +698,7 @@ export default function ReportsContent() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 bg-background">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
                       {headerGroup.headers.map((header) => (

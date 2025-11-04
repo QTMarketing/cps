@@ -17,6 +17,7 @@ export default function InvoicePreviewModal({ open, onClose, invoiceUrl, checkNu
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!invoiceUrl) return;
     setIsPdf(/\.pdf($|\?)/i.test(invoiceUrl) || invoiceUrl.toLowerCase().includes('application/pdf'));
     setLoading(true);
     setError(null);
@@ -36,7 +37,11 @@ export default function InvoicePreviewModal({ open, onClose, invoiceUrl, checkNu
             <div className="text-sm text-destructive mb-2">{error}</div>
           )}
           <div className="w-full h-full border rounded overflow-hidden bg-background">
-            {isPdf ? (
+            {!invoiceUrl ? (
+              <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                No invoice to preview
+              </div>
+            ) : isPdf ? (
               <iframe
                 src={invoiceUrl}
                 className="w-full h-full"
@@ -45,7 +50,7 @@ export default function InvoicePreviewModal({ open, onClose, invoiceUrl, checkNu
               />
             ) : (
               <img
-                src={invoiceUrl}
+                src={invoiceUrl || undefined}
                 alt="Invoice"
                 className="object-contain w-full h-full bg-black/5"
                 onLoad={() => setLoading(false)}

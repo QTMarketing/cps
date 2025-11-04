@@ -1,0 +1,17 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "loginUser": "admin@quicktrackinc.com",
+  "loginPassword": "admin1234",
+  "executionArgs": {
+    "projectName": "CPS",
+    "projectPath": "/Users/aniltamang/Desktop/CPS",
+    "testIds": [],
+    "additionalInstruction": "",
+    "envs": {
+      "API_KEY": "sk-user-9s8s600DBqpAlVo1XZTLzrnJtZyyt2KEqICb9miv1O3p3-SwIxMJ5wNqcW61zKp2SOdagkKAB5I-c2NOEyl9MUXFF2SQQ2HYUsy-Iqa-Pr-R2nyywxARpMfPOdExMP96VQQ"
+    }
+  }
+}

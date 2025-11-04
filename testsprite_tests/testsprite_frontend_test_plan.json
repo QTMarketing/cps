@@ -1,0 +1,51 @@
+{
+  "type": "frontend",
+  "scope": "codebase",
+  "baseUrl": "http://localhost:3000",
+  "needLogin": true,
+  "login": {
+    "path": "/login",
+    "email": "admin@quicktrackinc.com",
+    "password": "admin1234",
+    "emailSelector": "input[type=\"email\"]",
+    "passwordSelector": "input[type=\"password\"]",
+    "submitSelector": "button[type=\"submit\"]"
+  },
+  "tests": [
+    {
+      "id": "login-redirect-to-write-checks",
+      "name": "Login redirects to write-checks",
+      "steps": [
+        { "action": "navigate", "path": "/login" },
+        { "action": "type", "selector": "input[type=\\\"email\\\"]", "text": "admin@quicktrackinc.com" },
+        { "action": "type", "selector": "input[type=\\\"password\\\"]", "text": "admin1234" },
+        { "action": "click", "selector": "button[type=\\\"submit\\\"]" },
+        { "action": "waitForUrl", "expected": "/write-checks" }
+      ]
+    },
+    {
+      "id": "write-checks-has-required-controls",
+      "name": "Write Checks page renders core controls",
+      "precondition": "logged-in",
+      "steps": [
+        { "action": "navigate", "path": "/write-checks" },
+        { "action": "assertVisible", "selector": "text=Write Checks" },
+        { "action": "assertVisible", "selector": "select[name=\\\"bankId\\\"]" },
+        { "action": "assertVisible", "selector": "select[name=\\\"vendorId\\\"]" },
+        { "action": "assertVisible", "selector": "input[name=\\\"amount\\\"]" }
+      ]
+    },
+    {
+      "id": "upload-invoice-validation",
+      "name": "Invoice upload required before submit",
+      "precondition": "logged-in",
+      "steps": [
+        { "action": "navigate", "path": "/write-checks" },
+        { "action": "click", "selector": "button:has-text(\\\"Submit\\\")" },
+        { "action": "assertVisible", "selector": "text=Invoice is required" }
+      ]
+    }
+  ]
+}
+
+
