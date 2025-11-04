@@ -30,12 +30,14 @@ export const supabase: SupabaseClient =
     : (globalThis.__cps_supabase__ ||= createBrowserClient());
 
 // Create Supabase client for server-side use (with service role key)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+export const supabaseAdmin = typeof window === 'undefined'
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : (undefined as unknown as SupabaseClient);
 
 // Database types (you can generate these with: npx supabase gen types typescript --project-id uznzmoulrdzyfpshnixx)
 export type Database = {
@@ -292,10 +294,8 @@ function makeTypedClient(key: string): SupabaseClient<Database> {
   });
 }
 
-export const typedSupabase: SupabaseClient<Database> =
-  typeof window === 'undefined'
-    ? makeTypedClient(supabaseAnonKey)
-    : (globalThis.__cps_supabase_typed__ ||= makeTypedClient(supabaseAnonKey));
+// Reuse the same browser client to avoid multiple GoTrue instances
+export const typedSupabase: SupabaseClient<Database> = supabase as unknown as SupabaseClient<Database>;
 export const typedSupabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
