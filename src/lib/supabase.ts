@@ -286,10 +286,16 @@ export type Database = {
 }
 
 // Export typed Supabase clients
+function makeTypedClient(key: string): SupabaseClient<Database> {
+  return createClient<Database>(supabaseUrl, key, {
+    auth: { storageKey: 'cps-auth', persistSession: true, autoRefreshToken: true },
+  });
+}
+
 export const typedSupabase: SupabaseClient<Database> =
   typeof window === 'undefined'
-    ? (createClient as any)<Database>(supabaseUrl, supabaseAnonKey, { auth: { storageKey: 'cps-auth', persistSession: true, autoRefreshToken: true } })
-    : (globalThis.__cps_supabase_typed__ ||= (createClient as any)<Database>(supabaseUrl, supabaseAnonKey, { auth: { storageKey: 'cps-auth', persistSession: true, autoRefreshToken: true } }));
+    ? makeTypedClient(supabaseAnonKey)
+    : (globalThis.__cps_supabase_typed__ ||= makeTypedClient(supabaseAnonKey));
 export const typedSupabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
