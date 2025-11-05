@@ -285,16 +285,24 @@ export function isValidPermission(permission: string): permission is Permission 
 export function requirePermission(permission: Permission) {
   return async (req: NextRequest): Promise<NextResponse | null> => {
     try {
-      // Get user from request (assuming JWT token in Authorization header)
+      // Get user from request: Authorization header or auth-token cookie
       const authHeader = req.headers.get('authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      let token = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : '';
+
+      if (!token) {
+        const cookieHeader = req.headers.get('cookie') || '';
+        const match = cookieHeader.split('; ').find((c) => c.startsWith('auth-token='));
+        if (match) token = match.split('=')[1] || '';
+      }
+
+      if (!token) {
         return NextResponse.json(
           { error: 'Unauthorized', message: 'No valid authentication token' },
           { status: 401 }
         );
       }
-
-      const token = authHeader.substring(7);
       
       // Verify JWT token and get user
       const user = await getUserFromToken(token);
@@ -343,16 +351,24 @@ export function requirePermission(permission: Permission) {
 export function requireRole(role: Role) {
   return async (req: NextRequest): Promise<NextResponse | null> => {
     try {
-      // Get user from request
+      // Get user from request: Authorization header or auth-token cookie
       const authHeader = req.headers.get('authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      let token = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : '';
+
+      if (!token) {
+        const cookieHeader = req.headers.get('cookie') || '';
+        const match = cookieHeader.split('; ').find((c) => c.startsWith('auth-token='));
+        if (match) token = match.split('=')[1] || '';
+      }
+
+      if (!token) {
         return NextResponse.json(
           { error: 'Unauthorized', message: 'No valid authentication token' },
           { status: 401 }
         );
       }
-
-      const token = authHeader.substring(7);
       const user = await getUserFromToken(token);
       
       if (!user) {
@@ -401,14 +417,22 @@ export function requireMinimumRole(minimumRole: Role) {
   return async (req: NextRequest): Promise<NextResponse | null> => {
     try {
       const authHeader = req.headers.get('authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      let token = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : '';
+
+      if (!token) {
+        const cookieHeader = req.headers.get('cookie') || '';
+        const match = cookieHeader.split('; ').find((c) => c.startsWith('auth-token='));
+        if (match) token = match.split('=')[1] || '';
+      }
+
+      if (!token) {
         return NextResponse.json(
           { error: 'Unauthorized', message: 'No valid authentication token' },
           { status: 401 }
         );
       }
-
-      const token = authHeader.substring(7);
       const user = await getUserFromToken(token);
       
       if (!user) {
@@ -457,14 +481,22 @@ export function requireAnyPermission(permissions: Permission[]) {
   return async (req: NextRequest): Promise<NextResponse | null> => {
     try {
       const authHeader = req.headers.get('authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      let token = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : '';
+
+      if (!token) {
+        const cookieHeader = req.headers.get('cookie') || '';
+        const match = cookieHeader.split('; ').find((c) => c.startsWith('auth-token='));
+        if (match) token = match.split('=')[1] || '';
+      }
+
+      if (!token) {
         return NextResponse.json(
           { error: 'Unauthorized', message: 'No valid authentication token' },
           { status: 401 }
         );
       }
-
-      const token = authHeader.substring(7);
       const user = await getUserFromToken(token);
       
       if (!user) {

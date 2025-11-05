@@ -55,6 +55,10 @@ export default function Dashboard() {
           return;
         }
 
+        // Immediately redirect authenticated users to write-checks
+        router.push('/write-checks');
+        return;
+
         // Verify token
         const response = await fetch("/api/auth/me", {
           headers: {
@@ -93,10 +97,11 @@ export default function Dashboard() {
       ]);
 
       if (checksRes.ok) {
-        const checks = await checksRes.json();
-        const totalAmount = checks.reduce((sum: number, check: any) => sum + parseFloat(check.amount), 0);
-        const pendingChecks = checks.filter((check: any) => check.status === "Pending").length;
-        const printedChecks = checks.filter((check: any) => check.status === "Printed").length;
+        const data = await checksRes.json();
+        const checks = Array.isArray(data) ? data : (data?.checks || []);
+        const totalAmount = checks.reduce((sum: number, check: any) => sum + parseFloat(check.amount || 0), 0);
+        const pendingChecks = checks.filter((check: any) => (check.status === "Pending" || check.status === "ISSUED")).length;
+        const printedChecks = checks.filter((check: any) => (check.status === "Printed" || check.status === "CLEARED")).length;
 
         setStats(prev => ({
           ...prev,
@@ -108,12 +113,14 @@ export default function Dashboard() {
       }
 
       if (vendorsRes.ok) {
-        const vendors = await vendorsRes.json();
+        const vendorData = await vendorsRes.json();
+        const vendors = Array.isArray(vendorData) ? vendorData : (vendorData?.vendors || []);
         setStats(prev => ({ ...prev, totalVendors: vendors.length }));
       }
 
       if (banksRes.ok) {
-        const banks = await banksRes.json();
+        const bankData = await banksRes.json();
+        const banks = Array.isArray(bankData) ? bankData : (bankData?.banks || []);
         setStats(prev => ({ ...prev, totalBanks: banks.length }));
       }
     } catch (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase, supabaseHelpers } from "@/lib/supabase";
+// Switched to server API that uploads to S3
 
 const ALLOWED = ["application/pdf", "image/png", "image/jpeg"] as const;
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -20,25 +20,21 @@ export async function uploadInvoice(file: File, { checkNumber }: { checkNumber: 
     throw new Error("File too large. Max 10 MB.");
   }
 
-  const now = new Date();
-  const yyyy = String(now.getFullYear());
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const ts = now.getTime();
-  const ext = getExt(file.type);
+  const form = new FormData();
+  form.append('file', file);
+  form.append('checkNumber', checkNumber);
 
-  const path = `invoices/${yyyy}/${mm}/${checkNumber}-${ts}.${ext}`;
+  const res = await fetch('/api/upload/invoice', {
+    method: 'POST',
+    body: form,
+  } as RequestInit);
 
-  const { error } = await supabase.storage.from("invoices").upload(path, file, {
-    upsert: false,
-    cacheControl: "3600",
-    contentType: file.type,
-  });
-  if (error) {
-    throw new Error(error.message);
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.url) {
+    throw new Error(data?.error || `Upload failed (HTTP ${res.status})`);
   }
 
-  const publicUrl = supabaseHelpers.getPublicUrl("invoices", path);
-  return publicUrl;
+  return data.url as string;
 }
 
 

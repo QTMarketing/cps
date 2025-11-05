@@ -45,7 +45,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
-    const { checkNumber, paymentMethod, bankId, vendorId, amount, memo, status, issuedBy } = body;
+    const { checkNumber, paymentMethod, bankId, vendorId, amount, memo, status, issuedBy, invoiceUrl } = body;
 
     const check = await prisma.check.update({
       where: { id: (await params).id },
@@ -58,6 +58,7 @@ export async function PUT(
         memo,
         status,
         issuedBy,
+        invoiceUrl,
       },
       include: {
         bank: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,7 +30,7 @@ export default forwardRef<RecentChecksTableRef, {}>(function RecentChecksTable(_
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const { rows, total } = await listChecks({ q, status, page, pageSize });
@@ -39,11 +39,18 @@ export default forwardRef<RecentChecksTableRef, {}>(function RecentChecksTable(_
     } finally {
       setLoading(false);
     }
-  };
+  }, [q, status, page, pageSize]);
 
-  useImperativeHandle(ref, () => ({ refresh: load }), [q, status, page, pageSize]);
+  useImperativeHandle(ref, () => ({ refresh: load }), [load]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [q, status, page, pageSize]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const handler = () => {
+      load();
+    };
+    window.addEventListener('checks:refresh', handler as EventListener);
+    return () => window.removeEventListener('checks:refresh', handler as EventListener);
+  }, [load]);
 
   const pageCount = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
   const canPrev = page > 0;

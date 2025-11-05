@@ -1,6 +1,3 @@
-"use server";
-
-import { typedSupabaseAdmin } from "@/lib/supabase";
 import type { ReportCheck } from "./types";
 
 type Status = 'PENDING' | 'CLEARED' | 'VOIDED';
@@ -18,18 +15,28 @@ function mapStatus(dbStatus: string | null | undefined): Status {
   }
 }
 
+function mapPayment(pm: any): 'Check' | 'EDI' | 'MO' | 'Cash' | undefined {
+  const v = String(pm || '').toUpperCase();
+  if (v === 'CHECK') return 'Check';
+  if (v === 'EDI') return 'EDI';
+  if (v === 'MO') return 'MO';
+  if (v === 'CASH') return 'Cash';
+  return undefined;
+}
+
 function toReportRow(r: any): ReportCheck {
   return {
     id: r.id,
-    createdAt: r.created_at,
-    checkNumber: Number(r.check_number) || 0,
-    vendorName: r.vendors?.vendor_name || r.vendor?.name || r.vendor_name || 'Unknown Vendor',
-    storeName: r.stores?.name || r.store?.name || 'Unknown Store',
-    amount: Number(r.amount) || 0,
+    createdAt: r.createdAt || r.created_at,
+    checkNumber: Number(r.checkNumber || r.check_number || r.referenceNumber || 0),
+    vendorName: r.vendor?.vendorName || r.vendor?.vendor_name || 'Unknown Vendor',
+    storeName: r.vendor?.store?.name || r.store?.name || 'Unknown Store',
+    amount: Number(r.amount || 0),
     memo: r.memo || undefined,
-    userName: r.users?.username || r.user?.full_name || 'Unknown',
-    invoiceUrl: r.invoice_url || undefined,
+    userName: r.issuedByUser?.username || 'Unknown',
+    invoiceUrl: r.invoiceUrl || r.invoice_url || undefined,
     status: mapStatus(r.status),
+    paymentMethod: mapPayment(r.paymentMethod || r.payment_method),
   };
 }
 
@@ -45,96 +52,118 @@ export async function listReportChecks(params: {
   sortBy?: 'createdAt' | 'checkNumber' | 'amount';
   sortDir?: 'asc' | 'desc';
 }): Promise<{ rows: ReportCheck[]; total: number; }> {
-  const {
-    q,
-    status,
-    vendorId,
-    storeId,
-    dateFrom,
-    dateTo,
-    page = 0,
-    pageSize = 20,
-    sortBy = 'createdAt',
-    sortDir = 'desc',
-  } = params || {};
-
-  let query = typedSupabaseAdmin
-    .from('checks')
-    .select(`
-      id,
-      created_at,
-      check_number,
-      amount,
-      memo,
+  // Fetch from Prisma API (Lightsail DB) instead of Supabase
+  try {
+    const {
+      q,
       status,
-      invoice_url,
-      vendors:vendor_id ( vendor_name ),
-      stores:store_id ( name ),
-      users:issued_by ( username )
-    `, { count: 'exact' }) as any;
+      vendorId,
+      storeId,
+      dateFrom,
+      dateTo,
+      page = 0,
+      pageSize = 20,
+    } = params || {};
 
-  if (status) {
-    query = query.eq('status', status);
-  }
-  if (vendorId) {
-    query = query.eq('vendor_id', vendorId);
-  }
-  if (storeId) {
-    query = query.eq('store_id', storeId);
-  }
-  if (dateFrom) {
-    query = query.gte('created_at', dateFrom);
-  }
-  if (dateTo) {
-    query = query.lte('created_at', dateTo);
-  }
-  if (q && q.trim()) {
-    const qTrim = q.trim();
-    const isNum = /^\d+$/.test(qTrim);
-    if (isNum) {
-      query = query.or(`check_number.eq.${qTrim},memo.ilike.%${qTrim}%,vendors.vendor_name.ilike.%${qTrim}%,stores.name.ilike.%${qTrim}%,users.username.ilike.%${qTrim}%`);
-    } else {
-      query = query.or(`memo.ilike.%${qTrim}%,vendors.vendor_name.ilike.%${qTrim}%,stores.name.ilike.%${qTrim}%,users.username.ilike.%${qTrim}%`);
+    const token = typeof document !== 'undefined'
+      ? (document.cookie.split('; ').find(r => r.startsWith('auth-token='))?.split('=')[1] || '')
+      : '';
+
+    let url = `/api/checks?page=${page}&limit=${pageSize}`;
+    if (status) {
+      const dbStatus = status === 'PENDING' ? 'ISSUED' : status;
+      url += `&status=${encodeURIComponent(dbStatus)}`;
     }
-  }
+    if (q && q.trim()) {
+      url += `&search=${encodeURIComponent(q.trim())}`;
+    }
+    if (vendorId) {
+      url += `&vendorId=${encodeURIComponent(vendorId)}`;
+    }
+    if (storeId) {
+      url += `&storeId=${encodeURIComponent(storeId)}`;
+    }
+    // Note: dateFrom/dateTo and sortBy/sortDir not yet supported by API, but basic filtering works
 
-  // Sorting
-  const sortColumn = sortBy === 'createdAt' ? 'created_at' : sortBy === 'checkNumber' ? 'check_number' : 'amount';
-  query = query.order(sortColumn, { ascending: sortDir === 'asc' });
+    let res = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+    } as RequestInit);
 
-  // Pagination
-  const from = page * pageSize;
-  const to = from + pageSize - 1;
-  query = query.range(from, to);
+    if (res.status === 401 && token) {
+      res = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` },
+      } as RequestInit);
+    }
 
-  const { data, count, error } = await query;
-  if (error) {
+    if (!res.ok) {
+      console.error('Failed to fetch report checks:', res.status);
+      return { rows: [], total: 0 };
+    }
+
+    const data = await res.json();
+    const checks = Array.isArray(data) ? data : (data?.checks || []);
+    const total = data?.total ?? checks.length;
+
+    // Client-side filtering for date range (until API supports it)
+    let filtered = checks;
+    if (dateFrom || dateTo) {
+      filtered = checks.filter((r: any) => {
+        const created = new Date(r.createdAt || r.created_at);
+        if (dateFrom && created < new Date(dateFrom)) return false;
+        if (dateTo && created > new Date(dateTo)) return false;
+        return true;
+      });
+    }
+
+    // Client-side sorting (until API supports it)
+    if (params.sortBy) {
+      const sortColumn = params.sortBy === 'createdAt' ? 'createdAt' : params.sortBy === 'checkNumber' ? 'checkNumber' : 'amount';
+      filtered.sort((a: any, b: any) => {
+        const aVal = a[sortColumn] || 0;
+        const bVal = b[sortColumn] || 0;
+        const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        return params.sortDir === 'asc' ? cmp : -cmp;
+      });
+    }
+
+    const rows: ReportCheck[] = filtered.map(toReportRow);
+    return { rows, total };
+  } catch (error) {
+    console.error('Error fetching report checks:', error);
     return { rows: [], total: 0 };
   }
-  const rows: ReportCheck[] = (data || []).map(toReportRow);
-  return { rows, total: count || 0 };
 }
 
 export async function getCheckById(id: string): Promise<ReportCheck | null> {
-  const { data, error } = await (typedSupabaseAdmin
-    .from('checks')
-    .select(`
-      id,
-      created_at,
-      check_number,
-      amount,
-      memo,
-      status,
-      invoice_url,
-      vendors:vendor_id ( vendor_name ),
-      stores:store_id ( name ),
-      users:issued_by ( username )
-    `)
-    .eq('id', id)
-    .single() as any);
+  try {
+    const token = typeof document !== 'undefined'
+      ? (document.cookie.split('; ').find(r => r.startsWith('auth-token='))?.split('=')[1] || '')
+      : '';
 
-  if (error || !data) return null;
-  return toReportRow(data);
+    let res = await fetch(`/api/checks/${encodeURIComponent(id)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+    } as RequestInit);
+
+    if (res.status === 401 && token) {
+      res = await fetch(`/api/checks/${encodeURIComponent(id)}`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` },
+      } as RequestInit);
+    }
+
+    if (!res.ok) return null;
+    const check = await res.json();
+    return toReportRow(check);
+  } catch {
+    return null;
+  }
 }
 
 

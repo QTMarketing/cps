@@ -296,12 +296,14 @@ function makeTypedClient(key: string): SupabaseClient<Database> {
 
 // Reuse the same browser client to avoid multiple GoTrue instances
 export const typedSupabase: SupabaseClient<Database> = supabase as unknown as SupabaseClient<Database>;
-export const typedSupabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+export const typedSupabaseAdmin: SupabaseClient<Database> = typeof window === 'undefined'
+  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : (undefined as unknown as SupabaseClient<Database>);
 
 // Helper functions for common operations
 export const supabaseHelpers = {

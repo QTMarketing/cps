@@ -290,19 +290,10 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
                   </div>
                 </TableHead>
 
-                {/* Status */}
+                {/* Payment Method (replaces Status) */}
                 <TableHead>
                   <div className="flex items-center gap-1">
-                    <span>Status</span>
-                    <Select value={status} onValueChange={(v) => { setPage(0); setStatus(v as Status); }}>
-                      <SelectTrigger className="h-8 px-2 w-28"><SelectValue placeholder="All" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All</SelectItem>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                        <SelectItem value="CLEARED">Cleared</SelectItem>
-                        <SelectItem value="VOIDED">Voided</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <span>Payment Method</span>
                   </div>
                 </TableHead>
 
@@ -346,8 +337,8 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${r.status === 'CLEARED' ? 'bg-green-500/15 text-green-300' : r.status === 'VOIDED' ? 'bg-red-500/15 text-red-300' : 'bg-amber-500/15 text-amber-300'}`}>
-                        {r.status}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-300">
+                        {r.paymentMethod || '—'}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">

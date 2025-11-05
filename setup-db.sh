@@ -35,3 +35,4 @@ echo "To start the development server: npm run dev"
 echo "To open Prisma Studio: npm run db:studio"
 
 
+

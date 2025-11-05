@@ -43,110 +43,150 @@ const mapPaymentToDb = (m: PaymentMethod): 'Check' | 'EDI' | 'MO' | 'Cash' => {
 };
 
 export async function listChecks(params: ListChecksParams): Promise<{ rows: CheckRecord[]; total: number; }> {
-  const page = Math.max(0, params.page ?? 0);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 10));
-  const from = page * pageSize;
-  const to = from + pageSize - 1;
-
-  // Base query with nested relations
-  let query = typedSupabaseAdmin
-    .from('checks')
-    .select(`
-      id,
-      created_at,
-      check_number,
-      amount,
-      memo,
-      status,
-      invoice_url,
-      vendor:vendors(id, vendor_name, store:stores(id, name)),
-      user:users!checks_issued_by_fkey(id, username)
-    `, { count: 'exact' })
-    .order('created_at', { ascending: false });
-
-  // Status filter
-  const dbStatus = params.status && params.status !== 'All' ? mapStatusToDb(params.status) : undefined;
-  if (dbStatus) {
-    query = query.eq('status', dbStatus);
-  }
-
-  // Vendor filter
-  if (params.vendorId) {
-    query = query.eq('vendor_id', params.vendorId);
-  }
-
-  // Store filter (through vendor.store_id)
-  if (params.storeId) {
-    query = query.eq('vendors.store_id', params.storeId);
-  }
-
-  // Simple search across fields
-  if (params.q && params.q.trim()) {
-    const q = params.q.trim();
-    // ilike on check_number or memo; for nested names, rely on PostgREST text search via or
-    query = query.or(`check_number.ilike.%${q}%,memo.ilike.%${q}%`);
-  }
-
-  const { data, error, count } = await query.range(from, to);
-  if (error) {
-    return { rows: [], total: 0 };
-  }
-
-  const rows: CheckRecord[] = (data || []).map((row: any) => {
-    const vendor = row.vendor || {};
-    const store = vendor.store || {};
-    const user = row.user || {};
-    return {
-      id: row.id,
-      createdAt: row.created_at,
-      checkNumber: String(row.check_number || ''),
-      vendorId: vendor.id,
-      vendorName: vendor.vendor_name || 'Unknown Vendor',
-      storeId: store.id || '',
-      storeName: store.name || 'Unknown Store',
-      amount: Number(row.amount || 0),
-      memo: row.memo || undefined,
-      userId: user.id || '',
-      userName: user.username || 'Unknown',
-      invoiceUrl: row.invoice_url || undefined,
-      status: mapDbStatusToUi(row.status || 'ISSUED'),
-    } as CheckRecord;
-  });
-
-  return { rows, total: count || 0 };
-}
-
-export async function listVendors(): Promise<{ id: string; name: string; }[]> {
-  const { data, error } = await typedSupabaseAdmin
-    .from('vendors')
-    .select('id, vendor_name')
-    .order('vendor_name');
-  if (error) return [];
-  return (data || []).map((v: any) => ({ id: v.id, name: v.vendor_name }));
-}
-
-export async function listStores(): Promise<{ id: string; name: string; }[]> {
-  const { data, error } = await typedSupabaseAdmin
-    .from('stores')
-    .select('id, name')
-    .order('name');
-  if (error) return [];
-  return (data || []).map((s: any) => ({ id: s.id, name: s.name }));
-}
-
-export async function listBanks(): Promise<{ id: string; name: string; storeId: string; }[]> {
-  // Fetch from our Prisma API to reflect banks added via the app
+  // Fetch from Prisma API (Lightsail DB) instead of Supabase
   try {
+    const page = Math.max(0, params.page ?? 0);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 10));
     const token = typeof document !== 'undefined'
       ? (document.cookie.split('; ').find(r => r.startsWith('auth-token='))?.split('=')[1] || '')
       : '';
 
-    const res = await fetch('/api/banks', {
+    let url = `/api/checks?page=${page}&limit=${pageSize}`;
+    if (params.status && params.status !== 'All') {
+      const dbStatus = mapStatusToDb(params.status);
+      if (dbStatus) url += `&status=${encodeURIComponent(dbStatus)}`;
+    }
+    if (params.q && params.q.trim()) {
+      url += `&search=${encodeURIComponent(params.q.trim())}`;
+    }
+    if (params.vendorId) {
+      url += `&vendorId=${encodeURIComponent(params.vendorId)}`;
+    }
+    if (params.storeId) {
+      url += `&storeId=${encodeURIComponent(params.storeId)}`;
+    }
+
+    let res = await fetch(url, {
       method: 'GET',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      // Avoid caching stale lists when adding a bank
       cache: 'no-store',
+      credentials: 'include',
     } as RequestInit);
+
+    if (res.status === 401 && token) {
+      res = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}` },
+      } as RequestInit);
+    }
+
+    if (!res.ok) {
+      console.error('Failed to fetch checks:', res.status);
+      return { rows: [], total: 0 };
+    }
+
+    const data = await res.json();
+    const checks = Array.isArray(data) ? data : (data?.checks || []);
+    const total = data?.total ?? checks.length;
+    
+    console.log('listChecks: fetched', checks.length, 'checks, total:', total);
+
+    const rows: CheckRecord[] = checks.map((row: any) => ({
+      id: row.id,
+      createdAt: row.createdAt || row.created_at,
+      checkNumber: String(row.checkNumber || row.check_number || row.referenceNumber || ''),
+      vendorId: row.vendorId || row.vendor?.id || '',
+      vendorName: row.vendor?.vendorName || row.vendor?.vendor_name || 'Unknown Vendor',
+      storeId: row.vendor?.store?.id || row.storeId || '',
+      storeName: row.vendor?.store?.name || row.store?.name || 'Unknown Store',
+      amount: Number(row.amount || 0),
+      memo: row.memo || undefined,
+      userId: row.issuedByUser?.id || row.issuedBy || '',
+      userName: row.issuedByUser?.username || 'Unknown',
+      invoiceUrl: row.invoiceUrl || row.invoice_url || undefined,
+      status: mapDbStatusToUi(row.status || 'ISSUED'),
+    } as CheckRecord));
+
+    return { rows, total };
+  } catch (error) {
+    console.error('Error fetching checks:', error);
+    return { rows: [], total: 0 };
+  }
+}
+
+export async function listVendors(): Promise<{ id: string; name: string; }[]> {
+  try {
+    let res = await fetch('/api/vendors', {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+    } as RequestInit);
+    if (res.status === 401 && typeof document !== 'undefined') {
+      const token = document.cookie.split('; ').find(r => r.startsWith('auth-token='))?.split('=')[1];
+      if (token) {
+        res = await fetch('/api/vendors', {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${token}` },
+        } as RequestInit);
+      }
+    }
+    if (!res.ok) return [];
+    const data = await res.json();
+    const list = Array.isArray(data?.vendors) ? data.vendors : data; // support {vendors: []} or []
+    return (list || []).map((v: any) => ({ id: v.id, name: v.vendorName || v.vendor_name }));
+  } catch {
+    return [];
+  }
+}
+
+export async function listStores(): Promise<{ id: string; name: string; }[]> {
+  try {
+    let res = await fetch('/api/stores', {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+    } as RequestInit);
+    if (res.status === 401 && typeof document !== 'undefined') {
+      const token = document.cookie.split('; ').find(r => r.startsWith('auth-token='))?.split('=')[1];
+      if (token) {
+        res = await fetch('/api/stores', {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${token}` },
+        } as RequestInit);
+      }
+    }
+    if (!res.ok) return [];
+    const json = await res.json();
+    const list = Array.isArray(json?.stores) ? json.stores : json;
+    return (list || []).map((s: any) => ({ id: s.id, name: s.name }));
+  } catch {
+    return [];
+  }
+}
+
+export async function listBanks(): Promise<{ id: string; name: string; storeId: string; }[]> {
+  // Fetch from our Prisma API; rely on same-origin cookies for auth
+  try {
+    let res = await fetch('/api/banks', {
+      method: 'GET',
+      cache: 'no-store',
+      // Ensure cookies are sent on same-origin
+      credentials: 'same-origin',
+    } as RequestInit);
+
+    // If cookie wasn’t attached (some browsers/contexts), retry with Authorization header from cookie value
+    if (res.status === 401 && typeof document !== 'undefined') {
+      const token = document.cookie.split('; ').find(r => r.startsWith('auth-token='))?.split('=')[1];
+      if (token) {
+        res = await fetch('/api/banks', {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${token}` },
+        } as RequestInit);
+      }
+    }
 
     if (!res.ok) return [];
     const banks = await res.json();

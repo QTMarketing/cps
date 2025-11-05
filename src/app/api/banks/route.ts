@@ -5,24 +5,34 @@ import { requireMinimumRole, Role } from '@/lib/rbac';
 // GET /api/banks - Get all banks (Admin/Manager only)
 export async function GET(req: NextRequest) {
   try {
+    // Accept JWT from Authorization header OR auth-token cookie
     const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let bearerToken = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : '';
+
+    if (!bearerToken) {
+      const cookieHeader = req.headers.get('cookie') || '';
+      const match = cookieHeader.split('; ').find((c) => c.startsWith('auth-token='));
+      if (match) bearerToken = match.split('=')[1] || '';
+    }
+
+    if (!bearerToken) {
       return NextResponse.json(
         { error: 'Unauthorized', message: 'Authentication required' },
         { status: 401 }
       );
     }
 
-    const token = authHeader.substring(7);
-    
-    // For now, let's fetch banks without RBAC to avoid connection pool issues
-    // TODO: Re-enable RBAC once connection pool is stable
+    // For now, fetch active banks without RBAC to avoid connection pool issues
     const banks = await prisma.bank.findMany({
+      where: { isActive: true },
       include: {
         store: true,
       },
+      orderBy: { createdAt: 'desc' },
     });
-    
+
     return NextResponse.json(banks);
   } catch (error) {
     console.error('Error fetching banks:', error);

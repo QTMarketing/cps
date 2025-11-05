@@ -9,6 +9,7 @@ export interface ReportCheck {
   userName: string;
   invoiceUrl?: string;
   status: 'PENDING' | 'CLEARED' | 'VOIDED';
+  paymentMethod?: 'Check' | 'EDI' | 'MO' | 'Cash';
 }
 
 
