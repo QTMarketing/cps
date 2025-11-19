@@ -1,9 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-import dotenv from 'dotenv';
 import { encryptString, decryptString, isValidEncryptedString } from './encryption';
 
-// Load environment variables
-dotenv.config({ path: '.env.local' });
+// Note: Next.js automatically loads .env.local, so no need to call dotenv.config()
 
 /**
  * Prisma Client with Automatic Encryption/Decryption Middleware

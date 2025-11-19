@@ -22,20 +22,20 @@ import { z } from 'zod';
 // VALIDATION SCHEMAS
 // =============================================================================
 
+const RoleEnum = z.enum(['USER', 'ADMIN', 'SUPER_ADMIN']);
+
 const updateUserSchema = z.object({
   username: z.string().min(3).max(50).optional(),
-  email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  role: z.enum(['ADMIN', 'MANAGER', 'USER']).optional(),
-  storeId: z.string().optional(),
+  assignedBankId: z.number().int().optional(),
+  role: RoleEnum.optional(),
 });
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(50),
-  email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['ADMIN', 'MANAGER', 'USER']).default('USER'),
-  storeId: z.string(),
+  assignedBankId: z.number().int().optional(),
+  role: RoleEnum.default('USER'),
 });
 
 // =============================================================================
@@ -56,7 +56,6 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
-    const role = searchParams.get('role') || '';
 
     const skip = (page - 1) * limit;
 
@@ -64,14 +63,7 @@ export async function GET(req: NextRequest) {
     const where: any = {};
     
     if (search) {
-      where.OR = [
-        { username: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-    
-    if (role) {
-      where.role = role;
+      where.username = { contains: search, mode: 'insensitive' };
     }
 
     const [users, total] = await Promise.all([
@@ -80,21 +72,13 @@ export async function GET(req: NextRequest) {
         select: {
           id: true,
           username: true,
-          email: true,
-          role: true,
-          storeId: true,
-          createdAt: true,
-          updatedAt: true,
-          store: {
-            select: {
-              name: true,
-            },
-          },
+          assigned_bank_id: true,
+          created_at: true,
         },
         skip,
         take: limit,
         orderBy: {
-          createdAt: 'desc',
+          created_at: 'desc',
         },
       }),
       prisma.user.count({ where }),
@@ -134,6 +118,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const validatedData = createUserSchema.parse(body);
+    const requestedRole = validatedData.role || 'USER';
 
     // Check if username already exists
     const existingUserByUsername = await prisma.user.findUnique({
@@ -147,18 +132,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if email already exists
-    const existingUserByEmail = await prisma.user.findUnique({
-      where: { email: validatedData.email },
-    });
-
-    if (existingUserByEmail) {
-      return NextResponse.json(
-        { error: 'Email already exists' },
-        { status: 400 }
-      );
-    }
-
     // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 12);
 
@@ -166,19 +139,16 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.create({
       data: {
         username: validatedData.username,
-        email: validatedData.email,
-        passwordHash: hashedPassword,
-        role: validatedData.role,
-        storeId: validatedData.storeId,
+        password_hash: hashedPassword,
+        assigned_bank_id: validatedData.assignedBankId || null,
+        role: requestedRole as Role,
       },
       select: {
         id: true,
         username: true,
-        email: true,
         role: true,
-        storeId: true,
-        createdAt: true,
-        updatedAt: true,
+        assigned_bank_id: true,
+        created_at: true,
       },
     });
 

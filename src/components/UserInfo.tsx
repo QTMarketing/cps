@@ -17,17 +17,15 @@ import { User, LogOut, Settings, Shield } from "lucide-react";
 interface User {
   id: string;
   username: string;
-  email: string;
   role: string;
-  storeId: string;
-  createdAt: string;
-  updatedAt: string;
-  store: {
+  email?: string | null;
+  createdAt?: string;
+  store?: {
     id: string;
     name: string;
-    address: string;
-    phone: string;
-  };
+    address?: string | null;
+    phone?: string | null;
+  } | null;
 }
 
 export function UserInfo() {
@@ -45,26 +43,12 @@ export function UserInfo() {
 
     const checkAuth = async () => {
       try {
-        const savedToken = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('auth-token='))
-          ?.split('=')[1];
-
-        if (savedToken) {
-          const response = await fetch("/api/auth/me", {
-            headers: {
-              Authorization: `Bearer ${savedToken}`,
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            setUser(data.user);
-          } else {
-            // Token is invalid, remove it
-            document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-            setUser(null);
-          }
+        const response = await fetch("/api/auth/session", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -90,10 +74,10 @@ export function UserInfo() {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
+      case 'SUPER_ADMIN':
+        return <Shield className="h-4 w-4 text-purple-500" />;
       case 'ADMIN':
         return <Shield className="h-4 w-4 text-red-500" />;
-      case 'MANAGER':
-        return <User className="h-4 w-4 text-blue-500" />;
       case 'USER':
         return <User className="h-4 w-4 text-green-500" />;
       default:
@@ -103,10 +87,10 @@ export function UserInfo() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
+      case 'SUPER_ADMIN':
+        return 'text-purple-600 bg-purple-50';
       case 'ADMIN':
         return 'text-red-600 bg-red-50';
-      case 'MANAGER':
-        return 'text-blue-600 bg-blue-50';
       case 'USER':
         return 'text-green-600 bg-green-50';
       default:
@@ -152,9 +136,11 @@ export function UserInfo() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{user.username}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
+            {user.email && (
+              <p className="text-xs leading-none text-muted-foreground">
+                {user.email}
+              </p>
+            )}
             <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
               {getRoleIcon(user.role)}
               <span className="ml-1">{user.role}</span>
@@ -180,6 +166,7 @@ export function UserInfo() {
     </DropdownMenu>
   );
 }
+
 
 
 

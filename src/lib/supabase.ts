@@ -1,6 +1,12 @@
+/**
+ * @deprecated This file is no longer actively used.
+ * The application has been migrated to use Prisma API endpoints instead of Supabase.
+ * This file is kept for reference but can be removed if Supabase storage is not needed.
+ */
+
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-// Supabase configuration
+// Supabase configuration (not currently used)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uznzmoulrdzyfpshnixx.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bnptb3VscmR6eWZwc2huaXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzOTM1MjQsImV4cCI6MjA3Njk2OTUyNH0.kxe7XV4IRQDuHLtYLuE2CUVbnsJlwK8kfso4tn8tbeI'
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bnptb3VscmR6eWZwc2huaXh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTM5MzUyNCwiZXhwIjoyMDc2OTY5NTI0fQ.WORItj1mWcCwkScAF7xxBiqMrjE0Uy-UAiZuu87hQxA'
@@ -49,7 +55,7 @@ export type Database = {
           username: string
           email: string
           password_hash: string
-          role: 'ADMIN' | 'MANAGER' | 'USER'
+          role: 'SUPER_ADMIN' | 'ADMIN' | 'USER'
           store_id: string | null
           is_active: boolean
           created_at: string
@@ -60,7 +66,7 @@ export type Database = {
           username: string
           email: string
           password_hash: string
-          role?: 'ADMIN' | 'MANAGER' | 'USER'
+          role?: 'SUPER_ADMIN' | 'ADMIN' | 'USER'
           store_id?: string | null
           is_active?: boolean
           created_at?: string
@@ -71,7 +77,7 @@ export type Database = {
           username?: string
           email?: string
           password_hash?: string
-          role?: 'ADMIN' | 'MANAGER' | 'USER'
+          role?: 'SUPER_ADMIN' | 'ADMIN' | 'USER'
           store_id?: string | null
           is_active?: boolean
           created_at?: string

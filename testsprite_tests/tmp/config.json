@@ -2,16 +2,17 @@
   "status": "commited",
   "type": "frontend",
   "scope": "codebase",
-  "localEndpoint": "http://localhost:3000",
+  "localEndpoint": "http://localhost:3000/add-user",
   "loginUser": "admin@quicktrackinc.com",
   "loginPassword": "admin1234",
   "executionArgs": {
     "projectName": "CPS",
     "projectPath": "/Users/aniltamang/Desktop/CPS",
     "testIds": [],
-    "additionalInstruction": "",
+    "additionalInstruction": "Focus on testing the Add-User page, specifically the \"Unassigned Accounts\" section. Verify that: 1) The API endpoint /api/banks/unassigned is called correctly, 2) Banks are displayed with checkboxes, 3) Each bank shows dbaName, accountType, and bankName in the correct format, 4) The \"Select All\" checkbox works, 5) Banks can be selected and assigned. Also check for any authentication or API errors in the console.",
     "envs": {
       "API_KEY": "sk-user-9s8s600DBqpAlVo1XZTLzrnJtZyyt2KEqICb9miv1O3p3-SwIxMJ5wNqcW61zKp2SOdagkKAB5I-c2NOEyl9MUXFF2SQQ2HYUsy-Iqa-Pr-R2nyywxARpMfPOdExMP96VQQ"
     }
-  }
+  },
+  "proxy": "http://3f6a99e2-fb0e-4714-9da9-e0ce0785e430:34btbdgwhoqXF3DPxZu7BrMzcFnkBVUg@tun.testsprite.com:8080"
 }

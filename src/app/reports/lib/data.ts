@@ -29,12 +29,13 @@ function toReportRow(r: any): ReportCheck {
     id: r.id,
     createdAt: r.createdAt || r.created_at,
     checkNumber: Number(r.checkNumber || r.check_number || r.referenceNumber || 0),
-    vendorName: r.vendor?.vendorName || r.vendor?.vendor_name || 'Unknown Vendor',
-    storeName: r.vendor?.store?.name || r.store?.name || 'Unknown Store',
+    dba: r.bank?.dba || r.dba || 'N/A', // DBA from bank
+    payeeName: r.payeeName || r.payee_name || r.vendor?.vendorName || r.vendor?.vendor_name || 'N/A', // Payee name from check or vendor
+    vendorName: r.vendor?.vendorName || r.vendor?.vendor_name || undefined, // Vendor name if available
     amount: Number(r.amount || 0),
     memo: r.memo || undefined,
-    userName: r.issuedByUser?.username || 'Unknown',
-    invoiceUrl: r.invoiceUrl || r.invoice_url || undefined,
+    userName: r.issuedByUser?.username || r.userName || 'N/A', // User who created the check
+    invoiceUrl: r.invoiceUrl || r.invoice_url || undefined, // Invoice URL if available
     status: mapStatus(r.status),
     paymentMethod: mapPayment(r.paymentMethod || r.payment_method),
   };
@@ -100,7 +101,8 @@ export async function listReportChecks(params: {
     }
 
     if (!res.ok) {
-      console.error('Failed to fetch report checks:', res.status);
+      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('Failed to fetch report checks:', res.status, errorData);
       return { rows: [], total: 0 };
     }
 

@@ -8,16 +8,34 @@ function getTokenFromCookie(): string | undefined {
 }
 
 export async function listBanks(): Promise<{ id: string; name: string; storeId: string; }[]> {
-  let res = await fetch('/api/banks', { method: 'GET', cache: 'no-store', credentials: 'include' } as RequestInit);
-  if (res.status === 401) {
-    const token = getTokenFromCookie();
-    if (token) {
-      res = await fetch('/api/banks', { method: 'GET', cache: 'no-store', headers: { Authorization: `Bearer ${token}` } } as RequestInit);
-    }
+  const token = getTokenFromCookie();
+  let res = await fetch('/api/banks/my', {
+    method: 'GET',
+    cache: 'no-store',
+    credentials: 'include',
+  } as RequestInit);
+
+  if (res.status === 401 && token) {
+    res = await fetch('/api/banks/my', {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}` },
+    } as RequestInit);
   }
-  if (!res.ok) return [];
-  const banks = await res.json();
-  return (banks || []).map((b: any) => ({ id: b.id, name: b.bankName || b.bank_name || 'Unnamed Bank', storeId: b.storeId || b.store_id || '' }));
+
+  if (!res.ok) {
+    console.warn('Failed to load banks for user:', res.status);
+    return [];
+  }
+
+  const data = await res.json();
+  const list = Array.isArray(data?.banks) ? data.banks : data;
+
+  return (list || []).map((b: any) => ({
+    id: String(b.id ?? b.bankId ?? ''),
+    name: b.bankName || b.bank_name || 'Unnamed Bank',
+    storeId: b.storeId || b.store_id || '',
+  }));
 }
 
 export async function listVendors(): Promise<{ id: string; name: string; }[]> {
@@ -31,7 +49,7 @@ export async function listVendors(): Promise<{ id: string; name: string; }[]> {
   if (!res.ok) return [];
   const data = await res.json();
   const list = Array.isArray(data?.vendors) ? data.vendors : data;
-  return (list || []).map((v: any) => ({ id: v.id, name: v.vendorName || v.vendor_name }));
+  return (list || []).map((v: any) => ({ id: String(v.id ?? ''), name: v.vendorName || v.vendor_name }));
 }
 
 export async function listStores(): Promise<{ id: string; name: string; }[]> {
@@ -62,16 +80,19 @@ export async function getNextCheckNumber(bankId?: string): Promise<number> {
   return Number(json?.next || 1);
 }
 
-export async function createCheck(input: { paymentMethod: PaymentMethod; bankId: string; vendorId: string; storeId: string; amount: number; memo?: string; }): Promise<{ ok: boolean; id?: string; checkNumber?: number; error?: string; }> {
+export async function createCheck(input: { paymentMethod: PaymentMethod; bankId: string; vendorId: string; storeId?: string; amount: number; memo?: string; payeeName?: string; }): Promise<{ ok: boolean; id?: string; checkNumber?: number; error?: string; }> {
   const token = getTokenFromCookie();
   const payload = {
     paymentMethod: input.paymentMethod === 'CHECK' ? 'Cheque' : input.paymentMethod === 'CASH' ? 'Cash' : input.paymentMethod,
     bankId: input.bankId,
     vendorId: input.vendorId,
-    storeId: input.storeId,
     amount: input.amount,
     memo: input.memo,
+    payeeName: input.payeeName,
   } as any;
+  if (input.storeId) {
+    payload.storeId = input.storeId;
+  }
   const res = await fetch('/api/checks', {
     method: 'POST',
     headers: {

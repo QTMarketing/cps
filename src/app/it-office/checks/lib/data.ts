@@ -1,6 +1,5 @@
 "use server";
 
-import { typedSupabaseAdmin } from "@/lib/supabase";
 import type { CheckRecord, PaymentMethod } from "./types";
 
 type ListChecksParams = {
@@ -200,84 +199,8 @@ export async function listBanks(): Promise<{ id: string; name: string; storeId: 
   }
 }
 
-export async function getNextCheckNumber(bankId: string): Promise<number> {
-  const { data, error } = await typedSupabaseAdmin
-    .from('checks')
-    .select('check_number')
-    .eq('bank_id', bankId)
-    .order('check_number', { ascending: false })
-    .limit(1);
-
-  if (error || !data || data.length === 0) {
-    return 1;
-  }
-
-  const maxNum = Number((data[0] as any).check_number) || 0;
-  return maxNum + 1;
-}
-
-export async function createCheck(input: { paymentMethod: PaymentMethod; bankId: string; checkNumber?: string; vendorId: string; storeId: string; amount: number; memo?: string; invoiceUrl?: string }): Promise<{ ok: boolean; id?: string; checkNumber?: number; error?: string; }> {
-  // Basic validation
-  if (!input.bankId) {
-    return { ok: false, error: 'bankId is required' };
-  }
-  if (!input.vendorId) {
-    return { ok: false, error: 'vendorId is required' };
-  }
-  if (!input.storeId) {
-    return { ok: false, error: 'storeId is required' };
-  }
-  if (!(input.amount > 0)) {
-    return { ok: false, error: 'amount must be > 0' };
-  }
-
-  const pmDb = mapPaymentToDb(input.paymentMethod);
-
-  // Auto-generate checkNumber if not provided
-  let checkNumber: number;
-  if (input.checkNumber) {
-    checkNumber = parseInt(input.checkNumber, 10);
-    if (isNaN(checkNumber) || checkNumber <= 0) {
-      return { ok: false, error: 'checkNumber must be a positive integer' };
-    }
-  } else {
-    checkNumber = await getNextCheckNumber(input.bankId);
-  }
-
-  const { data, error } = await (typedSupabaseAdmin
-    .from('checks') as any)
-    .insert({
-      check_number: checkNumber,
-      payment_method: pmDb,
-      bank_id: input.bankId,
-      vendor_id: input.vendorId,
-      store_id: input.storeId,
-      amount: input.amount,
-      memo: input.memo || null,
-      status: 'ISSUED',
-      invoice_url: input.invoiceUrl || null,
-    })
-    .select('id, check_number')
-    .single();
-
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-
-  return { ok: true, id: data?.id, checkNumber: data?.check_number };
-}
-
-export async function updateCheckInvoiceUrl(checkId: string, invoiceUrl: string): Promise<{ ok: boolean; error?: string; }> {
-  const { error } = await (typedSupabaseAdmin
-    .from('checks') as any)
-    .update({ invoice_url: invoiceUrl })
-    .eq('id', checkId);
-
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-
-  return { ok: true };
-}
+// Note: getNextCheckNumber, createCheck, and updateCheckInvoiceUrl functions
+// have been moved to client-data.ts and now use the Prisma API instead of Supabase.
+// These functions are no longer needed here as they were replaced by API calls.
 
 

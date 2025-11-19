@@ -139,7 +139,7 @@ export default forwardRef<RecentChecksTableRef, {}>(function RecentChecksTable(_
                     <TableCell className="truncate max-w-[160px]" title={r.checkNumber}>{r.checkNumber}</TableCell>
                     <TableCell className="truncate max-w-[220px]" title={r.vendorName}>{r.vendorName}</TableCell>
                     <TableCell className="truncate max-w-[200px]" title={r.storeName}>{r.storeName}</TableCell>
-                    <TableCell className="text-right">{new Intl.NumberFormat(undefined, { style: 'currency', currency: 'NPR' }).format(Number(r.amount))}</TableCell>
+                    <TableCell className="text-right">{new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(r.amount))}</TableCell>
                     <TableCell className="truncate max-w-[240px]" title={r.memo || ''}>{r.memo || '—'}</TableCell>
                     <TableCell className="truncate max-w-[160px]" title={r.userName}>{r.userName}</TableCell>
                     <TableCell>

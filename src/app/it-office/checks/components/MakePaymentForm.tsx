@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { listStores, listVendors, listBanks, createCheck, getNextCheckNumber, updateCheckInvoiceUrl } from "../lib/client-data";
+import { listVendors, listBanks, createCheck, getNextCheckNumber, updateCheckInvoiceUrl } from "../lib/client-data";
 import { uploadInvoice } from "../lib/upload";
 import type { PaymentMethod } from "../lib/types";
 import { useDropzone } from "react-dropzone";
@@ -27,7 +27,6 @@ export default function MakePaymentForm({ onCreated }: Props) {
   const [bankId, setBankId] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
   const [vendorId, setVendorId] = useState("");
-  const [storeId, setStoreId] = useState("");
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -35,7 +34,6 @@ export default function MakePaymentForm({ onCreated }: Props) {
 
   // options
   const [vendors, setVendors] = useState<Option[]>([]);
-  const [stores, setStores] = useState<Option[]>([]);
   const [banks, setBanks] = useState<{ id: string; name: string; storeId: string; }[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [optionsError, setOptionsError] = useState<string | null>(null);
@@ -50,21 +48,18 @@ export default function MakePaymentForm({ onCreated }: Props) {
       setLoadingOptions(true);
       setOptionsError(null);
       try {
-        const [vRes, sRes, bRes] = await Promise.allSettled([
+        const [vRes, bRes] = await Promise.allSettled([
           listVendors(),
-          listStores(),
           listBanks(),
         ]);
 
         const v = vRes.status === 'fulfilled' ? (vRes.value as { id: string; name: string }[]) : [];
-        const s = sRes.status === 'fulfilled' ? (sRes.value as { id: string; name: string }[]) : [];
         const b = bRes.status === 'fulfilled' ? (bRes.value as { id: string; name: string; storeId: string }[]) : [];
 
         setVendors(v);
-        setStores(s);
         setBanks(b);
 
-        if (vRes.status === 'rejected' || sRes.status === 'rejected' || bRes.status === 'rejected') {
+        if (vRes.status === 'rejected' || bRes.status === 'rejected') {
           console.warn('Some dropdowns failed to load');
         }
       } catch (error) {
@@ -125,7 +120,6 @@ export default function MakePaymentForm({ onCreated }: Props) {
     if (paymentMethod !== 'CASH' && !bankId) errs.push("Bank is required");
     if (paymentMethod !== 'CASH' && !checkNumber) errs.push("Check Number is required");
     if (!vendorId) errs.push("Vendor is required");
-    if (!storeId) errs.push("Store is required");
     if (!amount.trim() || isNaN(Number(amount)) || Number(amount) <= 0) errs.push("Amount must be a number > 0");
     // 2 decimal places
     if (!/^\d+(\.\d{1,2})?$/.test(amount)) errs.push("Amount must have at most 2 decimals");
@@ -157,11 +151,13 @@ export default function MakePaymentForm({ onCreated }: Props) {
       }
 
       // Create check first
+      const selectedVendor = vendors.find(v => v.id === vendorId);
+
       const res = await createCheck({
         paymentMethod,
         bankId: effectiveBankId,
         vendorId,
-        storeId,
+        payeeName: selectedVendor?.name,
         amount: Number(amount),
         memo: memo || undefined,
       });
@@ -190,7 +186,6 @@ export default function MakePaymentForm({ onCreated }: Props) {
       setBankId("");
       setCheckNumber("");
       setVendorId("");
-      setStoreId("");
       setAmount("");
       setMemo("");
       setFile(null);
@@ -304,18 +299,6 @@ export default function MakePaymentForm({ onCreated }: Props) {
           </Select>
         </div>
 
-        {/* Store */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Store</label>
-          <Select value={storeId} onValueChange={setStoreId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a store" />
-            </SelectTrigger>
-            <SelectContent>
-              {stores.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
 
         {/* Amount */}
         <div className="space-y-2">
@@ -361,7 +344,7 @@ export default function MakePaymentForm({ onCreated }: Props) {
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={onSubmit} disabled={submitting || (!bankId && paymentMethod !== 'CASH' && banks.length === 0) || (!checkNumber && paymentMethod !== 'CASH') || !vendorId || !storeId || !amount || !file}>
+          <Button onClick={onSubmit} disabled={submitting || (!bankId && paymentMethod !== 'CASH' && banks.length === 0) || (!checkNumber && paymentMethod !== 'CASH') || !vendorId || !amount || !file}>
             {submitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>) : 'Submit'}
           </Button>
         </div>

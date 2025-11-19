@@ -31,6 +31,7 @@ import {
   CheckCircle,
   XCircle
 } from "lucide-react";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -40,14 +41,14 @@ const createUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["ADMIN", "MANAGER", "USER"]),
+  role: z.enum(["SUPER_ADMIN", "ADMIN", "USER"]),
   storeId: z.string().min(1, "Store is required"),
 });
 
 const updateUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").optional(),
   email: z.string().email("Invalid email address").optional(),
-  role: z.enum(["ADMIN", "MANAGER", "USER"]).optional(),
+  role: z.enum(["SUPER_ADMIN", "ADMIN", "USER"]).optional(),
   storeId: z.string().min(1, "Store is required").optional(),
 });
 
@@ -67,7 +68,7 @@ interface User {
   id: string;
   username: string;
   email: string;
-  role: "ADMIN" | "MANAGER" | "USER";
+  role: "SUPER_ADMIN" | "ADMIN" | "USER";
   storeId: string;
   createdAt: string;
   updatedAt: string;
@@ -242,10 +243,10 @@ export default function UserManagementPage() {
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
+    case "SUPER_ADMIN":
+      return "default";
       case "ADMIN":
         return "destructive";
-      case "MANAGER":
-        return "default";
       case "USER":
         return "secondary";
       default:
@@ -549,8 +550,8 @@ export default function UserManagementPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                     <SelectItem value="USER">User</SelectItem>
-                    <SelectItem value="MANAGER">Manager</SelectItem>
                     <SelectItem value="ADMIN">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -627,8 +628,8 @@ export default function UserManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
-                  <SelectItem value="MANAGER">Manager</SelectItem>
                   <SelectItem value="USER">User</SelectItem>
                 </SelectContent>
               </Select>
@@ -680,10 +681,19 @@ export default function UserManagementPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getRoleBadgeVariant(user.role)}>
-                          <Shield className="h-3 w-3 mr-1" />
-                          {user.role}
-                        </Badge>
+                        <RoleSwitcher
+                          userId={user.id}
+                          currentRole={user.role as "USER" | "ADMIN" | "SUPER_ADMIN"}
+                          compact={true}
+                          onRoleChange={(newRole) => {
+                            // Update local state
+                            setUsers(users.map(u => 
+                              u.id === user.id ? { ...u, role: newRole } : u
+                            ));
+                            // Refresh users list
+                            fetchUsers();
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
@@ -778,8 +788,8 @@ export default function UserManagementPage() {
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                   <SelectItem value="USER">User</SelectItem>
-                  <SelectItem value="MANAGER">Manager</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
               </Select>

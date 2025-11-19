@@ -19,7 +19,7 @@ const updateUserSchema = z.object({
   username: z.string().min(3).max(50).optional(),
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  role: z.enum(['ADMIN', 'MANAGER', 'USER']).optional(),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'USER']).optional(),
   storeId: z.string().optional(),
 });
 

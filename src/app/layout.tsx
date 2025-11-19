@@ -26,9 +26,11 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <SidebarLayout>
-            {children}
-          </SidebarLayout>
+          <AuthProvider>
+            <SidebarLayout>
+              {children}
+            </SidebarLayout>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

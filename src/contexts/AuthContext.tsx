@@ -5,23 +5,21 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 interface User {
   id: string;
   username: string;
-  email: string;
   role: string;
-  storeId: string;
-  createdAt: string;
-  updatedAt: string;
-  store: {
+  email?: string | null;
+  createdAt?: string;
+  store?: {
     id: string;
     name: string;
-    address: string;
-    phone: string;
-  };
+    address?: string | null;
+    phone?: string | null;
+  } | null;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -53,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (savedToken) {
           setToken(savedToken);
-          await fetchUser(savedToken);
+          await fetchUser();
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -65,13 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [mounted]);
 
-  const fetchUser = async (authToken: string) => {
+  const fetchUser = async () => {
     try {
-      const response = await fetch("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/auth/session", { credentials: "include" });
 
       if (response.ok) {
         const data = await response.json();
@@ -79,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Token is invalid, remove it
         document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        setUser(null);
         setToken(null);
       }
     } catch (error) {
@@ -88,21 +83,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setUser(data.user);
         setToken(data.token);
         document.cookie = `auth-token=${data.token}; path=/; max-age=86400`;
+        await fetchUser();
         return true;
       } else {
         const errorData = await response.json();

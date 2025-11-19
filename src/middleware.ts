@@ -1,15 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
-// Avoid Node-only JWT verification in middleware (Edge). Decode payload only.
+import { NextRequest, NextResponse } from "next/server";
 
-/**
- * HTTPS Middleware for Next.js
- * 
- * This middleware provides:
- * - HTTP to HTTPS redirection
- * - Security headers
- * - HSTS configuration
- * - Environment-based enforcement
- */
+type Role = "SUPER_ADMIN" | "ADMIN" | "USER";
+
+const PUBLIC_PATHS = [
+  "/login",
+  "/unauthorized",
+  "/",
+  "/health",
+  "/favicon.ico",
+];
+
+const PUBLIC_PREFIXES = ["/_next", "/api/auth", "/api/public", "/public", "/uploads"];
+
+const ROLE_ALLOWLIST: Record<Role, string[]> = {
+  USER: ["/write-checks"],
+  ADMIN: [
+    "/write-checks",
+    "/reports",
+    "/add-vendor",
+    "/add-vendors",
+    "/add-bank",
+    "/banks",
+    "/add-user",
+    "/users",
+    "/user-management",
+    "/check-print",
+    "/cheque-print",
+    "/vendors",
+  ],
+  SUPER_ADMIN: ["*"],
+};
 
 interface SecurityConfig {
   forceHttps: boolean;
@@ -18,60 +38,54 @@ interface SecurityConfig {
   preload: boolean;
 }
 
-// Get security configuration from environment
 function getSecurityConfig(): SecurityConfig {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const forceHttps = process.env.FORCE_HTTPS === 'true' || isProduction;
+  const isProduction = process.env.NODE_ENV === "production";
+  const forceHttps = process.env.FORCE_HTTPS === "true" || isProduction;
   
   return {
     forceHttps,
-    hstsMaxAge: parseInt(process.env.HSTS_MAX_AGE || '31536000', 10), // 1 year
-    includeSubDomains: process.env.HSTS_INCLUDE_SUBDOMAINS !== 'false',
-    preload: process.env.HSTS_PRELOAD !== 'false',
+    hstsMaxAge: parseInt(process.env.HSTS_MAX_AGE || "31536000", 10),
+    includeSubDomains: process.env.HSTS_INCLUDE_SUBDOMAINS !== "false",
+    preload: process.env.HSTS_PRELOAD !== "false",
   };
 }
 
-// Check if request is secure
 function isSecureRequest(request: NextRequest): boolean {
-  const forwardedProto = request.headers.get('x-forwarded-proto');
-  const forwardedSsl = request.headers.get('x-forwarded-ssl');
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedSsl = request.headers.get("x-forwarded-ssl");
   
   return (
-    forwardedProto === 'https' ||
-    forwardedSsl === 'on' ||
-    request.nextUrl.protocol === 'https:'
+    forwardedProto === "https" ||
+    forwardedSsl === "on" ||
+    request.nextUrl.protocol === "https:"
   );
 }
 
-// Create HTTPS redirect URL
 function createHttpsUrl(request: NextRequest): string {
-  const host = request.headers.get('host') || 'localhost';
+  const host = request.headers.get("host") || "localhost";
   const url = request.nextUrl.clone();
   
-  url.protocol = 'https:';
+  url.protocol = "https:";
   url.host = host;
   
   return url.toString();
 }
 
-// Add security headers
 function addSecurityHeaders(response: NextResponse, config: SecurityConfig): NextResponse {
-  // HTTP Strict Transport Security
   if (config.forceHttps) {
     let hstsValue = `max-age=${config.hstsMaxAge}`;
     
     if (config.includeSubDomains) {
-      hstsValue += '; includeSubDomains';
+      hstsValue += "; includeSubDomains";
     }
     
     if (config.preload) {
-      hstsValue += '; preload';
+      hstsValue += "; preload";
     }
     
-    response.headers.set('Strict-Transport-Security', hstsValue);
+    response.headers.set("Strict-Transport-Security", hstsValue);
   }
   
-  // Content Security Policy
   const csp = [
     "default-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -82,111 +96,131 @@ function addSecurityHeaders(response: NextResponse, config: SecurityConfig): Nex
     "frame-src 'none'",
     "object-src 'none'",
     "upgrade-insecure-requests",
-  ].join('; ');
+  ].join("; ");
   
-  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.delete("X-Powered-By");
   
-  // X-Frame-Options (prevent clickjacking)
-  response.headers.set('X-Frame-Options', 'DENY');
-  
-  // X-Content-Type-Options (prevent MIME sniffing)
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  
-  // X-XSS-Protection
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-  
-  // Referrer Policy
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
-  // Remove X-Powered-By header
-  response.headers.delete('X-Powered-By');
-  
-  // Permissions Policy
   const permissionsPolicy = [
-    'camera=()',
-    'microphone=()',
-    'geolocation=()',
-    'interest-cohort=()',
-  ].join(', ');
+    "camera=()",
+    "microphone=()",
+    "geolocation=()",
+    "interest-cohort=()",
+  ].join(", ");
   
-  response.headers.set('Permissions-Policy', permissionsPolicy);
+  response.headers.set("Permissions-Policy", permissionsPolicy);
   
   return response;
 }
 
-// Main middleware function
-export function middleware(request: NextRequest) {
-  const config = getSecurityConfig();
-  // Role-based route protection
-  const adminOnlyPaths = ['/reports', '/banks', '/users', '/user-management', '/admin', '/file-management'];
-  const urlPath = request.nextUrl.pathname;
-  const needsAdmin = adminOnlyPaths.some(p => urlPath.startsWith(p));
+function isPublicPath(pathname: string): boolean {
+  return (
+    PUBLIC_PATHS.includes(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
+}
 
-  if (needsAdmin) {
-    const tokenCookie = request.cookies.get('auth-token')?.value;
-    if (!tokenCookie) {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
+function getTokenFromRequest(request: NextRequest): string | null {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+  return request.cookies.get("auth-token")?.value ?? null;
+}
+
+function decodeRole(token: string | null): Role | null {
+  if (!token) return null;
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const decoded =
+      typeof atob !== "undefined"
+        ? atob(payload)
+        : Buffer.from(payload, "base64").toString("utf8");
+    const json = JSON.parse(decoded);
+    if (json?.role === "SUPER_ADMIN" || json?.role === "ADMIN" || json?.role === "USER") {
+      return json.role;
     }
-    try {
-      const payload = tokenCookie.split('.')[1];
-      let json: any = null;
-      if (payload) {
-        try {
-          // Prefer atob in Edge; fallback to Buffer when available
-          // @ts-ignore
-          const decoded = typeof atob !== 'undefined' ? atob(payload) : Buffer.from(payload, 'base64').toString('utf8');
-          json = JSON.parse(decoded);
-        } catch (_) {
-          json = null;
-        }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function hasAccess(role: Role, pathname: string): boolean {
+  if (role === "SUPER_ADMIN") return true;
+  const allowlist = ROLE_ALLOWLIST[role] || [];
+  return allowlist.some(
+    (allowed) =>
+      pathname === allowed || pathname.startsWith(`${allowed}/`)
+  );
+}
+
+function respondUnauthorized(request: NextRequest, status: 401 | 403) {
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api");
+  if (isApiRoute) {
+    return NextResponse.json(
+      {
+        error: status === 401 ? "Unauthorized" : "Forbidden",
+        message:
+          status === 401
+            ? "Authentication required"
+            : "Insufficient permissions",
+      },
+      { status }
+    );
+  }
+  const redirectPath = status === 401 ? "/login" : "/unauthorized";
+  return NextResponse.redirect(new URL(redirectPath, request.url));
+}
+
+export function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isApiRoute = pathname.startsWith("/api");
+
+  if (!isPublicPath(pathname)) {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      return respondUnauthorized(request, 401);
+    }
+
+    if (!isApiRoute) {
+      const role = decodeRole(token) ?? "USER";
+      if (!hasAccess(role, pathname)) {
+        return respondUnauthorized(request, 403);
       }
-      if (json?.role !== 'ADMIN') {
-        return NextResponse.redirect(new URL('/unauthorized', request.url));
-      }
-    } catch {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }
-  
-  // Skip HTTPS redirection for development or if disabled
+
+  const config = getSecurityConfig();
+
   if (!config.forceHttps) {
     return NextResponse.next();
   }
-  
-  // Skip HTTPS redirection for localhost in development
-  if (request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1') {
+
+  if (
+    request.nextUrl.hostname === "localhost" ||
+    request.nextUrl.hostname === "127.0.0.1"
+  ) {
     return NextResponse.next();
   }
-  
-  // Check if request is already secure
+
   if (isSecureRequest(request)) {
-    // Request is already HTTPS, add security headers
     const response = NextResponse.next();
     return addSecurityHeaders(response, config);
   }
-  
-  // Redirect HTTP to HTTPS
+
   const httpsUrl = createHttpsUrl(request);
-  
-  console.log(`🔒 Redirecting HTTP to HTTPS: ${request.url} → ${httpsUrl}`);
-  
   const response = NextResponse.redirect(httpsUrl, 301);
-  
-  // Add security headers to redirect response
   return addSecurityHeaders(response, config);
 }
 
-// Configure which paths the middleware should run on
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - health (health check endpoint)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|health).*)',
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

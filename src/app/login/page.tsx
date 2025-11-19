@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Lock, Mail } from "lucide-react";
+import { Building2, Lock, User } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -26,21 +26,20 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Store token in cookie with secure flags
         const cookieValue = `auth-token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
         document.cookie = cookieValue;
-        console.log("Login successful, token saved to cookie");
         router.push("/write-checks");
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Login failed");
+        const errorData = await response.json().catch(() => ({ error: "Login failed" }));
+        setError(errorData.error || errorData.message || "Login failed");
+        console.error("Login error details:", errorData);
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -70,18 +69,18 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
+              <label htmlFor="username" className="text-sm font-medium">
+                Username
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
                   className="pl-9"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                 />
               </div>
@@ -120,7 +119,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
         </CardContent>
       </Card>
     </div>

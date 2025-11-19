@@ -6,7 +6,7 @@
  * middleware functions, and helper utilities.
  * 
  * Features:
- * - Role hierarchy (ADMIN > MANAGER > USER)
+ * - Role hierarchy (SUPER_ADMIN > ADMIN > USER)
  * - Permission-based access control
  * - Middleware for API route protection
  * - TypeScript type safety
@@ -15,16 +15,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from './prisma';
+import { Role } from './roles';
 
-// =============================================================================
-// ROLE DEFINITIONS
-// =============================================================================
-
-export enum Role {
-  ADMIN = 'ADMIN',
-  MANAGER = 'MANAGER',
-  USER = 'USER',
-}
+// Re-export Role for backward compatibility
+export { Role } from './roles';
 
 // =============================================================================
 // PERMISSION DEFINITIONS
@@ -81,11 +75,44 @@ export enum Permission {
 
 /**
  * Permission hierarchy mapping roles to their allowed permissions
- * ADMIN has all permissions, MANAGER has most, USER has limited access
+ * ADMIN has nearly all permissions, USER has limited access
  */
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  [Role.SUPER_ADMIN]: [
+    // Super Admin inherits everything Admin can do plus system permissions.
+    Permission.CREATE_CHECK,
+    Permission.VIEW_CHECK,
+    Permission.EDIT_CHECK,
+    Permission.VOID_CHECK,
+    Permission.PRINT_CHECK,
+    Permission.MANAGE_USERS,
+    Permission.VIEW_USERS,
+    Permission.CREATE_USER,
+    Permission.EDIT_USER,
+    Permission.DELETE_USER,
+    Permission.MANAGE_VENDORS,
+    Permission.VIEW_VENDORS,
+    Permission.CREATE_VENDOR,
+    Permission.EDIT_VENDOR,
+    Permission.DELETE_VENDOR,
+    Permission.MANAGE_BANKS,
+    Permission.VIEW_BANKS,
+    Permission.CREATE_BANK,
+    Permission.EDIT_BANK,
+    Permission.DELETE_BANK,
+    Permission.VIEW_REPORTS,
+    Permission.EXPORT_REPORTS,
+    Permission.VIEW_ANALYTICS,
+    Permission.MANAGE_SYSTEM,
+    Permission.VIEW_AUDIT_LOGS,
+    Permission.MANAGE_SETTINGS,
+    Permission.UPLOAD_FILES,
+    Permission.DOWNLOAD_FILES,
+    Permission.DELETE_FILES,
+  ],
+
   [Role.ADMIN]: [
-    // All permissions
+    // All operational permissions except system-level
     Permission.CREATE_CHECK,
     Permission.VIEW_CHECK,
     Permission.EDIT_CHECK,
@@ -117,32 +144,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.DELETE_FILES,
   ],
   
-  [Role.MANAGER]: [
-    // Most permissions except system administration
-    Permission.CREATE_CHECK,
-    Permission.VIEW_CHECK,
-    Permission.EDIT_CHECK,
-    Permission.VOID_CHECK,
-    Permission.PRINT_CHECK,
-    Permission.VIEW_USERS,
-    Permission.CREATE_USER,
-    Permission.EDIT_USER,
-    Permission.MANAGE_VENDORS,
-    Permission.VIEW_VENDORS,
-    Permission.CREATE_VENDOR,
-    Permission.EDIT_VENDOR,
-    Permission.DELETE_VENDOR,
-    Permission.VIEW_BANKS,
-    Permission.CREATE_BANK,
-    Permission.EDIT_BANK,
-    Permission.VIEW_REPORTS,
-    Permission.EXPORT_REPORTS,
-    Permission.VIEW_ANALYTICS,
-    Permission.UPLOAD_FILES,
-    Permission.DOWNLOAD_FILES,
-    Permission.DELETE_FILES,
-  ],
-  
   [Role.USER]: [
     // Limited permissions for basic operations
     Permission.CREATE_CHECK,
@@ -164,11 +165,12 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 export interface User {
   id: string;
   username: string;
-  email: string;
   role: Role;
-  storeId: string;
-  createdAt: Date;
-  updatedAt: Date;
+  email?: string | null;
+  storeId?: string | null;
+  assignedBankId?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface PermissionCheck {
@@ -246,7 +248,7 @@ export function userHasAnyRole(user: User, roles: Role[]): boolean {
  * Check if a user's role is higher than or equal to the specified role
  */
 export function userHasRoleOrHigher(user: User, minimumRole: Role): boolean {
-  const roleHierarchy = [Role.USER, Role.MANAGER, Role.ADMIN];
+  const roleHierarchy = [Role.USER, Role.ADMIN, Role.SUPER_ADMIN];
   const userRoleIndex = roleHierarchy.indexOf(user.role);
   const minimumRoleIndex = roleHierarchy.indexOf(minimumRole);
   
@@ -549,23 +551,43 @@ async function getUserFromToken(token: string): Promise<User | null> {
   try {
     // Import JWT verification (you'll need to implement this based on your JWT setup)
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Get user from database
-    const user = await prisma.user.findUnique({
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production') as {
+      userId?: number;
+      role?: Role;
+    };
+
+    if (!decoded || typeof decoded.userId !== 'number') {
+      return null;
+    }
+
+    const userRecord = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
         id: true,
         username: true,
-        email: true,
         role: true,
-        storeId: true,
-        createdAt: true,
-        updatedAt: true,
+        assigned_bank_id: true,
+        created_at: true,
       },
     });
-    
-    return user as User | null;
+
+    if (!userRecord) {
+      return null;
+    }
+
+    const roleFromToken = decoded.role;
+    const role = roleFromToken && Object.values(Role).includes(roleFromToken)
+      ? roleFromToken
+      : (userRecord.role as Role | undefined) ?? Role.USER;
+
+    return {
+      id: String(userRecord.id),
+      username: userRecord.username,
+      role,
+      assignedBankId: userRecord.assigned_bank_id ? String(userRecord.assigned_bank_id) : null,
+      createdAt: userRecord.created_at,
+      updatedAt: userRecord.created_at,
+    };
   } catch (error) {
     console.error('Token verification error:', error);
     return null;

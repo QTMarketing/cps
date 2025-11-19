@@ -28,18 +28,18 @@ async function main() {
   const users = [
     {
       id: "cmh4jy99u0002rgk2joxgi0vc",
-      username: "admin",
+      username: "superadmin",
       email: "admin@quicktrackinc.com",
       password: "admin1234",
-      role: Role.ADMIN,
+      role: Role.SUPER_ADMIN,
       storeId: store.id,
     },
     {
       id: "cmh4jy99u0003rgk2joxgi0vd",
-      username: "manager",
-      email: "manager@qtoffice.com",
-      password: "manager123",
-      role: Role.MANAGER,
+      username: "admin",
+      email: "admin@qtoffice.com",
+      password: "admin123",
+      role: Role.ADMIN,
       storeId: store.id,
     },
     {

@@ -13,7 +13,9 @@ import type { ReportCheck } from "../lib/types";
 import { downloadCSV } from "../lib/export";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, ExternalLink, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Search, ExternalLink, ChevronLeft, ChevronRight, Filter, Printer } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import CheckPrint from "@/components/CheckPrintComponent";
 
 type Status = 'All' | 'PENDING' | 'CLEARED' | 'VOIDED';
 
@@ -53,6 +55,9 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
   const [totalAmount, setTotalAmount] = useState(0);
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const [selectedCheck, setSelectedCheck] = useState<ReportCheck | null>(null);
+  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  const [fullCheckData, setFullCheckData] = useState<{ id: string; checkNumber?: number | string | null; referenceNumber?: number | string | null; } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -112,10 +117,20 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
     return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(d).replace(',', '');
   };
 
-  const currency = (n: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'NPR' }).format(n);
+  const currency = (n: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(n);
 
   const downloadRow = (r: ReportCheck) => {
     downloadCSV(`check-${r.checkNumber}.csv`, [r]);
+  };
+
+  const handlePrint = (r: ReportCheck) => {
+    setSelectedCheck(r);
+    setFullCheckData({
+      id: r.id,
+      checkNumber: r.checkNumber,
+      referenceNumber: r.checkNumber,
+    });
+    setIsPrintDialogOpen(true);
   };
 
   return (
@@ -169,11 +184,11 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
                   </div>
                 </TableHead>
 
-                {/* Check Number */}
+                {/* Cheque Number */}
                 <TableHead className="whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" className="h-8 px-2" onClick={() => { setSortBy('checkNumber'); setSortDir(sortBy === 'checkNumber' && sortDir === 'asc' ? 'desc' : 'asc'); }}>
-                      Check Number
+                      Cheque Number
                     </Button>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -186,43 +201,31 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
                   </div>
                 </TableHead>
 
-                {/* Vendors */}
-                <TableHead>
+                {/* DBA (Doing Business As) */}
+                <TableHead className="whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    <span>Vendors</span>
+                    <span>DBA</span>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8"><Filter className="h-4 w-4" /></Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56">
-                        <Select value={vendorId} onValueChange={(v) => { setPage(0); setVendorId(v); }}>
-                          <SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">All vendors</SelectItem>
-                            {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Input placeholder="DBA contains" onChange={(e) => { setPage(0); setQ(e.target.value); }} />
                       </PopoverContent>
                     </Popover>
                   </div>
                 </TableHead>
 
-                {/* Store */}
-                <TableHead className="whitespace-nowrap">
+                {/* Payee (Vendor) */}
+                <TableHead>
                   <div className="flex items-center gap-1">
-                    <span>Store</span>
+                    <span>Payee</span>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8"><Filter className="h-4 w-4" /></Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56">
-                        <Select value={storeId} onValueChange={(v) => { setPage(0); setStoreId(v); }}>
-                          <SelectTrigger><SelectValue placeholder="Select store" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">All stores</SelectItem>
-                            {stores.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Input placeholder="Payee contains" onChange={(e) => { setPage(0); setQ(e.target.value); }} />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -239,7 +242,7 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
                         <Button variant="ghost" size="icon" className="h-8 w-8"><Filter className="h-4 w-4" /></Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56">
-                        <div className="text-xs text-muted-foreground mb-2">Use global search for amount contains (MVP)</div>
+                        <div className="text-xs text-muted-foreground mb-2">Use global search for amount contains</div>
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -284,21 +287,14 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
                         <Button variant="ghost" size="icon" className="h-8 w-8"><Filter className="h-4 w-4" /></Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56">
-                        <Button variant="outline" className="w-full" onClick={() => { /* MVP stub */ }}>Has invoice only (MVP)</Button>
+                        <Button variant="outline" className="w-full" onClick={() => { /* Filter by invoices only */ }}>Has invoice only</Button>
                       </PopoverContent>
                     </Popover>
                   </div>
                 </TableHead>
 
-                {/* Payment Method (replaces Status) */}
-                <TableHead>
-                  <div className="flex items-center gap-1">
-                    <span>Payment Method</span>
-                  </div>
-                </TableHead>
-
-                {/* Actions (no header label) */}
-                <TableHead />
+                {/* Print */}
+                <TableHead className="text-right">Print</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -306,53 +302,58 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={`s-${i}`}>
-                    {Array.from({ length: 10 }).map((__, j) => (
+                    {Array.from({ length: 9 }).map((__, j) => (
                       <TableCell key={j}><div className="h-4 w-full max-w-[180px] animate-pulse rounded bg-muted" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10}>
+                  <TableCell colSpan={9}>
                     <div className="text-center text-muted-foreground py-12">No data</div>
                   </TableCell>
                 </TableRow>
               ) : (
                 rows.map((r) => (
                   <TableRow key={r.id} className="h-9">
-                    <TableCell className="py-2">{formatDateTime(r.createdAt)}</TableCell>
+                    <TableCell className="py-2 whitespace-nowrap">{formatDateTime(r.createdAt)}</TableCell>
                     <TableCell className="py-2">{r.checkNumber}</TableCell>
-                    <TableCell className="py-2 truncate max-w-[220px]" title={r.vendorName}>{r.vendorName}</TableCell>
-                    <TableCell className="py-2 truncate max-w-[200px]" title={r.storeName}>{r.storeName}</TableCell>
-                    <TableCell className="py-2 text-right">{currency(Number(r.amount))}</TableCell>
-                    <TableCell className="py-2 truncate max-w-[240px]" title={r.memo || ''}>{r.memo || '—'}</TableCell>
-                    <TableCell className="py-2 truncate max-w-[180px]" title={r.userName}>{r.userName}</TableCell>
-                    <TableCell>
+                    <TableCell className="py-2 truncate max-w-[200px]" title={r.dba || 'N/A'}>
+                      {r.dba || 'N/A'}
+                    </TableCell>
+                    <TableCell className="py-2 truncate max-w-[220px]" title={r.payeeName || r.vendorName || 'N/A'}>
+                      {r.payeeName || r.vendorName || 'N/A'}
+                    </TableCell>
+                    <TableCell className="py-2 text-right whitespace-nowrap">{currency(Number(r.amount))}</TableCell>
+                    <TableCell className="py-2 truncate max-w-[240px]" title={r.memo || ''}>
+                      {r.memo || '—'}
+                    </TableCell>
+                    <TableCell className="py-2 truncate max-w-[180px]" title={r.userName || 'N/A'}>
+                      {r.userName || 'N/A'}
+                    </TableCell>
+                    <TableCell className="py-2">
                       {r.invoiceUrl ? (
-                        <a href={r.invoiceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                        <a 
+                          href={r.invoiceUrl} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
                           <ExternalLink className="h-4 w-4" /> View
                         </a>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-300">
-                        {r.paymentMethod || '—'}
-                      </span>
-                    </TableCell>
                     <TableCell className="text-right">
-                      <details className="relative">
-                        <summary className="list-none">
-                          <Button variant="outline" size="sm">Actions</Button>
-                        </summary>
-                        <div className="absolute right-0 mt-2 w-48 rounded-md border bg-popover p-2 shadow">
-                          <button className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded" onClick={() => downloadRow(r)}>Download this check (CSV)</button>
-                          {r.invoiceUrl && (
-                            <button className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded" onClick={() => navigator.clipboard.writeText(r.invoiceUrl!)}>Copy link to invoice</button>
-                          )}
-                        </div>
-                      </details>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handlePrint(r)}
+                      >
+                        <Printer className="h-4 w-4 mr-1" />
+                        Print
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -379,6 +380,28 @@ export default forwardRef<ReportsTableRef, {}>(function ReportsTable(_, ref) {
           </div>
         </div>
       </CardContent>
+
+      {/* Print Dialog */}
+      <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Print Check</DialogTitle>
+            <DialogDescription>
+              {selectedCheck && `Check #${selectedCheck.checkNumber}`}
+            </DialogDescription>
+          </DialogHeader>
+          {fullCheckData && (
+            <CheckPrint 
+              check={fullCheckData} 
+              onPrint={() => {
+                setIsPrintDialogOpen(false);
+                setSelectedCheck(null);
+                setFullCheckData(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 });

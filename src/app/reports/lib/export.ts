@@ -13,14 +13,13 @@ function escapeCsv(value: unknown): string {
 export function toCSV(rows: ReportCheck[]): string {
   const headers = [
     "Created Date",
-    "Check Number",
-    "Vendors",
-    "Store",
+    "Cheque Number",
+    "DBA",
+    "Payee",
     "Amount",
     "Memo",
     "User",
     "Invoice",
-    "Status",
   ];
 
   const lines = [headers.join(",")];
@@ -30,13 +29,12 @@ export function toCSV(rows: ReportCheck[]): string {
     const line = [
       createdStr,
       r.checkNumber,
-      r.vendorName,
-      r.storeName,
+      r.dba || "N/A",
+      r.payeeName || "N/A",
       r.amount,
       r.memo ?? "",
-      r.userName,
+      r.userName || "N/A",
       r.invoiceUrl ?? "",
-      r.status,
     ]
       .map(escapeCsv)
       .join(",");

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@/lib/rbac";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -31,8 +32,12 @@ export async function GET(request: NextRequest) {
     // Find user in database
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      include: {
-        store: true,
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        assigned_bank_id: true,
+        created_at: true,
       },
     });
 
@@ -44,11 +49,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Return user data (without password hash)
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    const userPayload = {
+      id: user.id,
+      username: user.username,
+      role: user.role ?? decoded.role ?? Role.USER,
+      assignedBankId: user.assigned_bank_id ?? null,
+      createdAt: user.created_at,
+    };
 
     return NextResponse.json({
       success: true,
-      user: userWithoutPassword,
+      user: userPayload,
     });
   } catch (error) {
     console.error("Get user error:", error);

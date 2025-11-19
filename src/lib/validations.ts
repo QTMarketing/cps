@@ -363,7 +363,7 @@ const usernameSchema = z
 /**
  * User Role enum
  */
-const userRoleSchema = z.enum(['ADMIN', 'MANAGER', 'USER'], {
+const userRoleSchema = z.enum(['SUPER_ADMIN', 'ADMIN', 'USER'], {
   message: 'Invalid user role',
 });
 

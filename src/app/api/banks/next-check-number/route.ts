@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const START_NUMBER = 1000;
+
+async function computeGlobalNextNumber(): Promise<number> {
+  const maxCheck = await prisma.check.findFirst({
+    orderBy: { check_number: 'desc' },
+    select: { check_number: true },
+  });
+
+  return maxCheck ? Number(maxCheck.check_number) + 1 : START_NUMBER;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -9,21 +20,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'bankId is required' }, { status: 400 });
     }
 
-    // Read from global SystemCounter; if missing, seed from DB with floor 1000
-    let counter = await prisma.systemCounter.findUnique({ where: { key: 'global_check' } });
-    if (!counter) {
-      const rows = await prisma.$queryRawUnsafe(
-        "SELECT COALESCE(MAX(GREATEST(NULLIF(regexp_replace(check_number, '\\D','','g'), '')::int, NULLIF(regexp_replace(reference_number, '\\D','','g'), '')::int)), 0) AS maxn FROM checks"
-      );
-      const maxn = Array.isArray(rows) && rows.length ? Number((rows as any)[0].maxn || 0) : 0;
-      const seed = Math.max(1000, maxn + 1);
-      counter = await prisma.systemCounter.create({ data: { key: 'global_check', nextNumber: seed } });
-    }
-    const next = counter.nextNumber;
+    const nextNumber = await computeGlobalNextNumber();
 
-    return NextResponse.json({ next });
+    return NextResponse.json({ next: String(nextNumber) });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to compute next check number' }, { status: 500 });
+    console.error('Error computing next check number:', error);
+    return NextResponse.json({ 
+      error: 'Failed to compute next check number',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
