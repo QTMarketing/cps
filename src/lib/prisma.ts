@@ -192,9 +192,11 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClientWithEncryption()
+const prismaClient = (globalForPrisma.prisma ?? createPrismaClientWithEncryption()) as any;
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+export const prisma = prismaClient;
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prismaClient
 
 /**
  * Utility function to manually encrypt bank data

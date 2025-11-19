@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole, Role } from "@/lib/rbac";
+import { requireMinimumRole, Role } from "@/lib/rbac";
 import { z } from "zod";
 
 const optionalString = (max: number) =>
@@ -11,9 +11,11 @@ const optionalString = (max: number) =>
     .optional()
     .transform((val) => (val ? val : null));
 
+const vendorTypeValues = ["MERCHANDISE", "EXPENSE", "EMPLOYEE"] as const;
+
 const updateSchema = z.object({
   vendorName: z.string().trim().min(1).max(150).optional(),
-  vendorType: z.enum(["MERCHANDISE", "EXPENSE", "EMPLOYEE"]).optional(),
+  vendorType: z.enum(vendorTypeValues).optional(),
   description: optionalString(500),
   contactPerson: optionalString(150),
   email: z.string().trim().email().optional().transform((val) => (val ? val : null)),
@@ -36,8 +38,6 @@ const vendorInclude = {
     },
   },
 };
-
-const rolesAllowed = [Role.ADMIN, Role.SUPER_ADMIN];
 
 const parseVendorId = (idValue: string) => {
   const id = Number(idValue);
@@ -71,7 +71,7 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireRole(rolesAllowed)(request);
+  const guard = await requireMinimumRole(Role.ADMIN)(request);
   if (guard) return guard;
 
   try {
@@ -97,7 +97,7 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireRole(rolesAllowed)(request);
+  const guard = await requireMinimumRole(Role.ADMIN)(request);
   if (guard) return guard;
 
   try {
@@ -173,7 +173,7 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireRole(rolesAllowed)(request);
+  const guard = await requireMinimumRole(Role.ADMIN)(request);
   if (guard) return guard;
 
   try {

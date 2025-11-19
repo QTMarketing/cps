@@ -74,6 +74,12 @@ type ChequeRecord = {
     account_number: bigint | number | null;
     signature_url: string | null;
     BankSigner: BankSignatureRecord[] | null;
+    account_name?: string | null;
+    dba?: string | null;
+    return_address?: string | null;
+    return_city?: string | null;
+    return_state?: string | null;
+    return_zip?: string | number | null;
   };
 };
 
@@ -81,7 +87,7 @@ export function mapChequeRecord(record: ChequeRecord): ChequeViewModel {
   const amountValue = record.amount ? Number(record.amount) : 0;
   const amountWords = formatAmountInWords(amountValue);
 
-  const vendor =
+  const vendorPayee: ChequeViewModel["payee"] | null =
     record.Vendor != null
       ? {
           id: record.Vendor.id.toString(),
@@ -90,22 +96,23 @@ export function mapChequeRecord(record: ChequeRecord): ChequeViewModel {
         }
       : null;
 
-  const payee =
-    vendor ??
+  const payee: ChequeViewModel["payee"] =
+    vendorPayee ??
     (record.payee_name
       ? {
           id: null,
-          type: "unknown" as const,
+          type: "unknown",
           name: record.payee_name,
         }
       : {
           id: null,
-          type: "unknown" as const,
+          type: "unknown",
           name: "Unknown Payee",
         });
 
+  const bankRecord = record.Bank as any;
   const fallbackSignature =
-    record.Bank.BankSigner?.[0]?.Signer.Signature?.[0]?.url || null;
+    bankRecord.BankSigner?.[0]?.Signer.Signature?.[0]?.url || null;
 
   return {
     id: record.id.toString(),
@@ -115,21 +122,23 @@ export function mapChequeRecord(record: ChequeRecord): ChequeViewModel {
     memo: record.memo ?? "",
     createdAt: record.created_at.toISOString(),
     issuedBy: record.issued_by_username ?? "Unknown",
-  bank: {
-    name: record.Bank.bank_name,
-    accountName: record.Bank.account_name,
-    dba: record.Bank.dba,
-    addressLine1: record.Bank.return_address,
-    cityStateZip:
-      record.Bank.return_city || record.Bank.return_state || record.Bank.return_zip
-        ? `${record.Bank.return_city || ""}${
-            record.Bank.return_state ? `, ${record.Bank.return_state}` : ""
-          }${record.Bank.return_zip ? ` ${record.Bank.return_zip}` : ""}`.trim()
-        : null,
-    routingNumber: record.Bank.routing_number?.toString() || "",
-    accountNumber: record.Bank.account_number?.toString() || "",
-    signatureUrl: record.Bank.signature_url || fallbackSignature,
-  },
+    bank: {
+      name: bankRecord.bank_name,
+      accountName: bankRecord.account_name ?? null,
+      dba: bankRecord.dba ?? null,
+      addressLine1: bankRecord.return_address ?? null,
+      cityStateZip:
+        bankRecord.return_city ||
+        bankRecord.return_state ||
+        bankRecord.return_zip
+          ? `${bankRecord.return_city || ""}${
+              bankRecord.return_state ? `, ${bankRecord.return_state}` : ""
+            }${bankRecord.return_zip ? ` ${bankRecord.return_zip}` : ""}`.trim()
+          : null,
+      routingNumber: bankRecord.routing_number?.toString() || "",
+      accountNumber: bankRecord.account_number?.toString() || "",
+      signatureUrl: bankRecord.signature_url || fallbackSignature,
+    },
     payee,
   };
 }

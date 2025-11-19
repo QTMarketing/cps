@@ -149,14 +149,14 @@ export async function generatePdf(data: ChequeData): Promise<Buffer> {
   const startY = height - MARGIN;
 
   // Helper function to draw text
-  const drawText = (
+const drawText = (
     text: string,
     x: number,
     y: number,
     opts: {
       size?: number;
       font?: any;
-      color?: [number, number, number];
+    color?: ReturnType<typeof rgb>;
     } = {}
   ) => {
     if (!text) return;

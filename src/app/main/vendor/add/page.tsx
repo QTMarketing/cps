@@ -69,7 +69,11 @@ export default function VendorAddPage() {
       }
 
       if (!("success" in data) || !data.success || !Array.isArray(data.banks)) {
-        throw new Error(data?.error || "Invalid accounts payload");
+        const fallbackError =
+          (data as { error?: string; message?: string })?.error ||
+          (data as { error?: string; message?: string })?.message ||
+          "Invalid accounts payload";
+        throw new Error(fallbackError);
       }
 
       const mapped: Account[] = data.banks.map((bank) => ({

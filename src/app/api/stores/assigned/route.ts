@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole, Role } from '@/lib/rbac';
 
+const prismaUnsafe = prisma as any;
+
 export async function GET(req: NextRequest) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
@@ -13,7 +15,7 @@ export async function GET(req: NextRequest) {
     const q = (searchParams.get('q') || '').trim();
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
-    const joins = await prisma.userStore.findMany({
+    const joins = await prismaUnsafe.userStore.findMany({
       where: { userId },
       include: { store: true },
       orderBy: { store: { name: 'asc' } },

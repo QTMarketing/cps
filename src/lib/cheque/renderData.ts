@@ -78,7 +78,7 @@ export const chequeDataSchema = z.object({
  * Validates cheque data against the schema
  */
 export function validateChequeData(data: unknown): ChequeData {
-  return chequeDataSchema.parse(data);
+  return chequeDataSchema.parse(data) as ChequeData;
 }
 
 /**

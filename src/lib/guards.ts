@@ -60,7 +60,7 @@ export async function requireMinimumRole(
   req: NextRequest,
   minimumRole: Role
 ): Promise<GuardContext> {
-  const hierarchy: Role[] = ["USER", "ADMIN", "SUPER_ADMIN"];
+  const hierarchy: Role[] = [Role.USER, Role.ADMIN, Role.SUPER_ADMIN];
   const ctx = await getGuardContext(req);
   if (hierarchy.indexOf(ctx.role) < hierarchy.indexOf(minimumRole)) {
     throw { status: 403, message: "Forbidden" };

@@ -3,6 +3,7 @@ import puppeteer from "puppeteer-core";
 import { ChequeViewModel } from "@/lib/cheques/types";
 import path from "path";
 import { promises as fs } from "fs";
+import { Buffer } from "buffer";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -294,11 +295,12 @@ export async function generateChequePDF(cheque: ChequeViewModel): Promise<Buffer
   const micrFont = await getMicrFontDataUrl();
   const html = renderChequeHtml(cheque, micrFont);
 
+  const chromiumAny = chromium as any;
   const browser = await puppeteer.launch({
     args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
+    defaultViewport: chromiumAny.defaultViewport ?? null,
     executablePath: executablePath || undefined,
-    headless: chromium.headless,
+    headless: chromiumAny.headless ?? true,
   });
 
   try {
@@ -317,7 +319,7 @@ export async function generateChequePDF(cheque: ChequeViewModel): Promise<Buffer
         right: "0.5in",
       },
     });
-    return pdf;
+    return Buffer.from(pdf);
   } finally {
     await browser.close();
   }

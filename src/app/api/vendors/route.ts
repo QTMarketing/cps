@@ -12,11 +12,11 @@ const optionalString = (max: number) =>
     .optional()
     .transform((val) => (val ? val || null : null));
 
+const vendorTypeValues = ["MERCHANDISE", "EXPENSE", "EMPLOYEE"] as const;
+
 const createVendorSchema = z.object({
   vendorName: z.string().trim().min(1, "Vendor name is required").max(150),
-  vendorType: z.enum(["MERCHANDISE", "EXPENSE", "EMPLOYEE"], {
-    errorMap: () => ({ message: "Invalid vendor type" }),
-  }),
+  vendorType: z.enum(vendorTypeValues),
   description: optionalString(500),
   contactPerson: optionalString(150),
   email: z
