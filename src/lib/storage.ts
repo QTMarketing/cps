@@ -25,23 +25,21 @@ export async function uploadBufferToSupabase(
   if (!storage) {
     throw new Error("Supabase storage is not configured");
   }
-  let uploadBody: Blob | Buffer = buffer;
-  if (typeof Blob !== "undefined") {
-    const view = buffer.subarray ? buffer : Buffer.from(buffer);
-    const slice = view.buffer.slice(
-      view.byteOffset,
-      view.byteOffset + view.byteLength
-    ) as ArrayBuffer;
-    uploadBody = new Blob([slice], { type: contentType });
-  }
-  const { error } = await storage.upload(storagePath, uploadBody, {
+  
+  // Convert Buffer to Uint8Array (which Supabase accepts)
+  // Buffer extends Uint8Array, but we need to ensure it's in the right format
+  const uint8Array = new Uint8Array(buffer);
+  
+  const { error } = await storage.upload(storagePath, uint8Array, {
     cacheControl: "3600",
     upsert: true,
     contentType,
   });
+  
   if (error) {
     throw new Error(`Supabase upload failed: ${error.message}`);
   }
+  
   const { data } = storage.getPublicUrl(storagePath);
   return {
     path: storagePath,
