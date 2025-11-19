@@ -73,7 +73,18 @@ export async function uploadBufferToSupabase(
       
       await s3.send(command);
       
-      // Construct public URL from Supabase project URL
+      // Use Supabase JS client to get the correct public URL format
+      // This ensures the URL is properly formatted and accessible
+      const storage = getStorageClient(targetBucket);
+      if (storage) {
+        const { data } = storage.getPublicUrl(storagePath);
+        return {
+          path: storagePath,
+          publicUrl: data.publicUrl,
+        };
+      }
+      
+      // Fallback: Construct public URL manually if Supabase client is not available
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_S3_ENDPOINT.replace('/storage/v1/s3', '');
       const publicUrl = `${supabaseUrl}/storage/v1/object/public/${targetBucket}/${storagePath}`;
       
