@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-type AccountRow = { id: string; dbaName: string; bankName: string; accountType: string };
+type AccountRow = {
+  id: string;
+  dbaName: string;
+  bankName: string;
+  accountType: string;
+  name?: string | null;
+};
 
 export default function AddUser() {
   // Left panel state

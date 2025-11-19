@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     console.error('Error unassigning account:', e);
     if (e instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: e.errors },
+        { error: 'Invalid request data', details: e.issues },
         { status: 400 }
       );
     }

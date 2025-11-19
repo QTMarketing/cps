@@ -57,7 +57,7 @@ export async function POST(
     console.error('Error assigning banks:', e);
     if (e instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: e.errors },
+        { error: 'Invalid request data', details: e.issues },
         { status: 400 }
       );
     }

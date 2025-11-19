@@ -39,8 +39,8 @@ const vendorInclude = {
 
 const rolesAllowed = [Role.ADMIN, Role.SUPER_ADMIN];
 
-const getVendorId = (params: { id: string }) => {
-  const id = Number(params.id);
+const parseVendorId = (idValue: string) => {
+  const id = Number(idValue);
   if (Number.isNaN(id)) {
     throw new Error("Invalid vendor id");
   }
@@ -67,13 +67,17 @@ const serializeVendor = (vendor: any) => ({
 });
 
 // GET /api/vendors/[id]
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   const guard = await requireRole(rolesAllowed)(request);
   if (guard) return guard;
 
   try {
+    const { id } = await context.params;
     const vendor = await prisma.vendor.findUnique({
-      where: { id: getVendorId(params) },
+      where: { id: parseVendorId(id) },
       include: vendorInclude,
     });
 
@@ -89,14 +93,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT /api/vendors/[id]
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   const guard = await requireRole(rolesAllowed)(request);
   if (guard) return guard;
 
   try {
     const body = await request.json();
     const data = updateSchema.parse(body);
-    const vendorId = getVendorId(params);
+    const { id } = await context.params;
+    const vendorId = parseVendorId(id);
 
     const updated = await prisma.$transaction(async (tx) => {
       const vendor = await tx.vendor.update({
@@ -161,13 +169,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/vendors/[id]
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   const guard = await requireRole(rolesAllowed)(request);
   if (guard) return guard;
 
   try {
+    const { id } = await context.params;
     await prisma.vendor.delete({
-      where: { id: getVendorId(params) },
+      where: { id: parseVendorId(id) },
     });
 
     return NextResponse.json({ success: true, message: "Vendor deleted successfully" });

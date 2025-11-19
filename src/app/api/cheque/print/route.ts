@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const pdfBuffer = await generatePdf(payload);
     const filename = `cheque_${payload.chequeNumber}.pdf`;
 
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

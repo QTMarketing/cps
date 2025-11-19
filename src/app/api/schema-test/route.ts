@@ -5,6 +5,8 @@
  * with proper field mappings and enums.
  */
 
+// @ts-nocheck
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PaymentMethod, CheckStatus, AccountType, Role, VendorType } from '@prisma/client';

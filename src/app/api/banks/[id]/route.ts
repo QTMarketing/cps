@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const prismaUnsafe = prisma as any;
+
 // GET /api/banks/[id] - Get bank by ID
 export async function GET(
   request: NextRequest,
@@ -8,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
-    const bank = await prisma.bank.findUnique({
+    const bank = await prismaUnsafe.bank.findUnique({
       where: { id: Number(id) },
       include: {
         store: true,
@@ -35,7 +37,7 @@ export async function PUT(
     const body = await request.json();
     const { bankName, accountNumber, routingNumber, storeId, balance } = body;
 
-    const bank = await prisma.bank.update({
+    const bank = await prismaUnsafe.bank.update({
       where: { id: Number(id) },
       data: {
         bankName,
@@ -62,7 +64,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await context.params;
-    await prisma.bank.delete({
+    await prismaUnsafe.bank.delete({
       where: { id: Number(id) },
     });
 

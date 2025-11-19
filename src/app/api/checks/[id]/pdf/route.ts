@@ -29,7 +29,7 @@ export async function GET(
     const cheque = mapChequeRecord(check as any);
     const pdfBytes = await generateChequePDF(cheque);
 
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(pdfBytes as any, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

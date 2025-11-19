@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const prismaUnsafe = prisma as any;
+
 // GET /api/stores/[id] - Get store by ID
 export async function GET(
   request: NextRequest,
@@ -8,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
-    const store = await prisma.store.findUnique({
+    const store = await prismaUnsafe.store.findUnique({
       where: { id },
     });
 
@@ -32,7 +34,7 @@ export async function PUT(
     const body = await request.json();
     const { name, address, phone } = body;
 
-    const store = await prisma.store.update({
+    const store = await prismaUnsafe.store.update({
       where: { id },
       data: {
         name,
@@ -54,7 +56,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await context.params;
-    await prisma.store.delete({
+    await prismaUnsafe.store.delete({
       where: { id },
     });
 

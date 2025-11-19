@@ -58,8 +58,7 @@ export async function POST(req: NextRequest) {
       select: {
         id: true,
         username: true,
-        email: true,
-        passwordHash: true,
+        password_hash: true,
         role: true,
       },
     });
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify password
-    const isPasswordValid = await compare(validatedData.password, user.passwordHash);
+    const isPasswordValid = await compare(validatedData.password, user.password_hash);
 
     if (!isPasswordValid) {
       // Log failed password verification attempt
