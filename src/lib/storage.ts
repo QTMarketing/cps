@@ -5,7 +5,7 @@ const DEFAULT_SUPABASE_BUCKET =
   process.env.SUPABASE_STORAGE_BUCKET || process.env.SUPABASE_BUCKET || "sign";
 
 function getStorageClient(bucket = DEFAULT_SUPABASE_BUCKET) {
-  if (!bucket) {
+  if (!bucket || !supabase) {
     return null;
   }
   return supabase.storage.from(bucket);

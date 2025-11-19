@@ -27,7 +27,7 @@ interface FileInfo {
 // List all uploaded files
 export async function GET() {
   try {
-    if (hasSupabaseStorage()) {
+    if (hasSupabaseStorage() && supabase) {
       const bucket = getSupabaseBucket();
       const storage = supabase.storage.from(bucket);
       const { data, error } = await storage.list(STORAGE_PREFIX, {
