@@ -25,7 +25,7 @@ const updateRoleSchema = z.object({
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   // Require SUPER_ADMIN role to change user roles
   const roleCheck = requireRole(Role.SUPER_ADMIN);
@@ -36,7 +36,7 @@ export async function PUT(
   }
 
   try {
-    const userIdParam = (await params).id;
+    const userIdParam = params.id;
     const body = await req.json();
     const validatedData = updateRoleSchema.parse(body);
     const newRole = validatedData.role as Role;

@@ -31,7 +31,7 @@ const resetPasswordSchema = z.object({
 // PATCH /api/users/[id]/password - Update user password
 // =============================================================================
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: (await params).id },
+      where: { id: params.id },
       select: {
         id: true,
         username: true,
@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // Update password
     await prisma.user.update({
-      where: { id: (await params).id },
+      where: { id: params.id },
       data: { passwordHash: hashedPassword },
     });
 
@@ -100,7 +100,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 // POST /api/users/[id]/reset-password - Reset user password with confirmation
 // =============================================================================
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: (await params).id },
+      where: { id: params.id },
       select: {
         id: true,
         username: true,
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Update password
     await prisma.user.update({
-      where: { id: (await params).id },
+      where: { id: params.id },
       data: { passwordHash: hashedPassword },
     });
 
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 // GET /api/users/[id]/password-status - Check password status
 // =============================================================================
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -180,7 +180,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: (await params).id },
+      where: { id: params.id },
       select: {
         id: true,
         username: true,

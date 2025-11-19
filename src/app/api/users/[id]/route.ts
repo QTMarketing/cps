@@ -31,7 +31,7 @@ const updatePasswordSchema = z.object({
 // GET /api/users/[id] - Get specific user details
 // =============================================================================
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const user = await prisma.user.findUnique({
-      where: { id: (await params).id },
+      where: { id: params.id },
       select: {
         id: true,
         username: true,
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // PUT /api/users/[id] - Update user details
 // =============================================================================
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -100,7 +100,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: (await params).id },
+      where: { id: params.id },
     });
 
     if (!existingUser) {
@@ -163,7 +163,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Update user
     const updatedUser = await prisma.user.update({
-      where: { id: (await params).id },
+      where: { id: params.id },
       data: updateData,
       select: {
         id: true,
@@ -206,7 +206,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 // DELETE /api/users/[id] - Delete user
 // =============================================================================
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -217,7 +217,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: (await params).id },
+      where: { id: params.id },
     });
 
     if (!existingUser) {
@@ -229,7 +229,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Check if user has any associated checks
     const userChecks = await prisma.check.count({
-      where: { issuedBy: (await params).id },
+      where: { issuedBy: params.id },
     });
 
     if (userChecks > 0) {
@@ -245,7 +245,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Delete user
     await prisma.user.delete({
-      where: { id: (await params).id },
+      where: { id: params.id },
     });
 
     return NextResponse.json({ 

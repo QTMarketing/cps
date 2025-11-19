@@ -9,14 +9,14 @@ const schema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   if (response) return response;
 
   try {
-    const { id } = await params;
+    const { id } = params;
     const userId = parseInt(id, 10);
     
     if (isNaN(userId)) {

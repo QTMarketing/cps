@@ -7,12 +7,12 @@ import { jsonGuardError, requireAuth } from '@/lib/guards';
 // GET /api/checks/[id] - Get check by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await requireAuth(request);
     const check = await prisma.check.findUnique({
-      where: { id: parseInt((await params).id, 10) },
+      where: { id: parseInt(params.id, 10) },
       select: chequeSelect,
     });
 
@@ -42,7 +42,7 @@ export async function GET(
 // PUT /api/checks/[id] - Update check
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const body = await request.json();
@@ -68,7 +68,7 @@ export async function PUT(
     }
 
     const check = await prisma.check.update({
-      where: { id: parseInt((await params).id, 10) },
+      where: { id: parseInt(params.id, 10) },
       data: updateData,
       select: {
         id: true,
@@ -125,11 +125,11 @@ export async function PUT(
 // DELETE /api/checks/[id] - Delete check
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await prisma.check.delete({
-      where: { id: parseInt((await params).id, 10) },
+      where: { id: parseInt(params.id, 10) },
     });
 
     return NextResponse.json({ message: 'Check deleted successfully' });

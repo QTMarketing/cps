@@ -7,10 +7,10 @@ const UPLOAD_DIR = join(process.cwd(), 'uploads');
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ fileName: string }> }
+  { params }: { params: { fileName: string } }
 ) {
   try {
-    const fileName = (await params).fileName;
+    const fileName = params.fileName;
     
     if (!fileName) {
       return NextResponse.json(
