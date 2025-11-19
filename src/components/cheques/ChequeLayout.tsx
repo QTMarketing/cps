@@ -1,9 +1,47 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { ChequeViewModel } from "@/lib/cheques/types";
+import { useState } from "react";
 
 interface Props {
   cheque: ChequeViewModel;
   className?: string;
+}
+
+// Helper function to normalize signature URL
+function normalizeSignatureUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  
+  // If already an absolute URL (starts with http:// or https://), return as is
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  
+  // If it's a relative URL starting with /, convert to absolute using current origin
+  if (url.startsWith("/")) {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}${url}`;
+    }
+    // Server-side: use environment variable or default
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:3000";
+    return `${baseUrl}${url}`;
+  }
+  
+  // If it's a Supabase Storage path without full URL, construct it
+  if (url.includes("/storage/") && !url.startsWith("http")) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+    if (supabaseUrl) {
+      // If URL already has /storage/, just prepend the base URL
+      if (url.startsWith("/storage/")) {
+        return `${supabaseUrl}${url}`;
+      }
+      // Otherwise construct the full public URL
+      return `${supabaseUrl}/storage/v1/object/public/${url}`;
+    }
+  }
+  
+  return url;
 }
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -29,6 +67,9 @@ export const buildMicrFromCheque = (cheque: ChequeViewModel) => {
 };
 
 export function ChequeLayout({ cheque, className }: Props) {
+  const [signatureError, setSignatureError] = useState(false);
+  const normalizedSignatureUrl = normalizeSignatureUrl(cheque.bank.signatureUrl);
+  
   return (
     <div className={cn("cheque-container", className)}>
       <span className="cheque-status">ISSUED</span>
@@ -72,8 +113,17 @@ export function ChequeLayout({ cheque, className }: Props) {
           <span>{cheque.memo || "\u00A0"}</span>
         </div>
         <div className="signature-container">
-          {cheque.bank.signatureUrl && (
-            <img src={cheque.bank.signatureUrl} alt="Authorized signature" />
+          {normalizedSignatureUrl && !signatureError && (
+            <img 
+              src={normalizedSignatureUrl} 
+              alt="Authorized signature"
+              onError={() => {
+                console.error("Failed to load signature image from:", normalizedSignatureUrl);
+                setSignatureError(true);
+              }}
+              onLoad={() => setSignatureError(false)}
+              style={{ maxWidth: "100%", height: "auto" }}
+            />
           )}
           <div className="signature-line" />
           <div className="signature-label">Signature</div>
