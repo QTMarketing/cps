@@ -4,11 +4,12 @@ import { prisma } from '@/lib/prisma';
 // GET /api/stores/[id] - Get store by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const store = await prisma.store.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!store) {
@@ -24,14 +25,15 @@ export async function GET(
 // PUT /api/stores/[id] - Update store
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const body = await request.json();
     const { name, address, phone } = body;
 
     const store = await prisma.store.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         address,
@@ -48,11 +50,12 @@ export async function PUT(
 // DELETE /api/stores/[id] - Delete store
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     await prisma.store.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Store deleted successfully' });

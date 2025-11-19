@@ -9,14 +9,15 @@ const schema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   if (response) return response;
 
   try {
-    const userId = parseInt(params.id, 10);
+    const { id } = await context.params;
+    const userId = parseInt(id, 10);
     
     if (isNaN(userId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });

@@ -1,14 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 // GET /api/banks/[id] - Get bank by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const bank = await prisma.bank.findUnique({
-      where: { id: params.id },
+      where: { id: Number(id) },
       include: {
         store: true,
       },
@@ -27,14 +28,15 @@ export async function GET(
 // PUT /api/banks/[id] - Update bank
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const body = await request.json();
     const { bankName, accountNumber, routingNumber, storeId, balance } = body;
 
     const bank = await prisma.bank.update({
-      where: { id: params.id },
+      where: { id: Number(id) },
       data: {
         bankName,
         accountNumber,
@@ -56,11 +58,12 @@ export async function PUT(
 // DELETE /api/banks/[id] - Delete bank
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     await prisma.bank.delete({
-      where: { id: params.id },
+      where: { id: Number(id) },
     });
 
     return NextResponse.json({ message: 'Bank deleted successfully' });

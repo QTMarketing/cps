@@ -13,7 +13,7 @@ import { requireRole, Role } from '@/lib/rbac';
 // GET /api/users/[id]/checks - Get user's checks (Admin only)
 // =============================================================================
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   // Require ADMIN role to view user checks
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
@@ -29,8 +29,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const skip = (page - 1) * limit;
 
     // Check if user exists
+    const { id } = await context.params;
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, username: true },
     });
 
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     const [checks, total] = await Promise.all([
       prisma.check.findMany({
-        where: { issuedBy: params.id },
+        where: { issuedBy: id },
         include: {
           vendor: {
             select: {
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         },
       }),
       prisma.check.count({
-        where: { issuedBy: params.id },
+        where: { issuedBy: id },
       }),
     ]);
 
