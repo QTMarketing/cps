@@ -4,11 +4,12 @@ import { prisma } from '@/lib/prisma';
 // GET /api/banks/[id] - Get bank by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const bank = await prisma.bank.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         store: true,
       },
@@ -27,14 +28,15 @@ export async function GET(
 // PUT /api/banks/[id] - Update bank
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { bankName, accountNumber, routingNumber, storeId, balance } = body;
 
     const bank = await prisma.bank.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         bankName,
         accountNumber,
@@ -56,11 +58,12 @@ export async function PUT(
 // DELETE /api/banks/[id] - Delete bank
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.bank.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Bank deleted successfully' });

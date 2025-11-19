@@ -6,11 +6,12 @@ import { chequeSelect, mapChequeRecord } from "@/lib/cheques/transformers";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth(req);
-    const idParam = params.id;
+    const { id } = await params;
+    const idParam = id;
     const checkId = parseInt(idParam, 10);
     if (Number.isNaN(checkId)) {
       return NextResponse.json({ error: "Invalid cheque id" }, { status: 400 });

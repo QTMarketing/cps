@@ -31,7 +31,7 @@ const updatePasswordSchema = z.object({
 // GET /api/users/[id] - Get specific user details
 // =============================================================================
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -40,8 +40,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 
   try {
+    const { id } = await params;
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         username: true,
@@ -86,7 +87,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 // PUT /api/users/[id] - Update user details
 // =============================================================================
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -99,8 +100,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const validatedData = updateUserSchema.parse(body);
 
     // Check if user exists
+    const { id } = await params;
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -163,7 +165,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     // Update user
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -206,7 +208,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 // DELETE /api/users/[id] - Delete user
 // =============================================================================
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const roleCheck = requireRole(Role.ADMIN);
   const response = await roleCheck(req);
   
@@ -216,8 +218,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   try {
     // Check if user exists
+    const { id } = await params;
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -229,7 +232,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     // Check if user has any associated checks
     const userChecks = await prisma.check.count({
-      where: { issuedBy: params.id },
+      where: { issuedBy: id },
     });
 
     if (userChecks > 0) {
@@ -245,7 +248,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     // Delete user
     await prisma.user.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ 
