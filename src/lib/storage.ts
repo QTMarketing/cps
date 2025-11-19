@@ -25,7 +25,18 @@ export async function uploadBufferToSupabase(
   if (!storage) {
     throw new Error("Supabase storage is not configured");
   }
-  const { error } = await storage.upload(storagePath, buffer, {
+  let uploadBody: Blob | Buffer = buffer;
+  if (typeof Blob !== "undefined") {
+    const view = buffer.subarray
+      ? buffer
+      : Buffer.from(buffer);
+    const slice = view.buffer.slice(
+      view.byteOffset,
+      view.byteOffset + view.byteLength
+    ) as ArrayBuffer;
+    uploadBody = new Blob([slice], { type: contentType });
+  }
+  const { error } = await storage.upload(storagePath, uploadBody, {
     cacheControl: "3600",
     upsert: true,
     contentType,
@@ -54,10 +65,10 @@ export async function downloadFromSupabase(storagePath: string) {
 }
 
 export async function deleteFromSupabase(storagePath: string) {
-  if (!getStorageClient()) {
+  const storage = getStorageClient();
+  if (!storage) {
     throw new Error("Supabase storage is not configured");
   }
-  const storage = getStorageClient()!;
   const { error } = await storage.remove([storagePath]);
   if (error) {
     throw new Error(`Supabase delete failed: ${error.message}`);

@@ -9,6 +9,8 @@ import {
   getSupabaseBucket,
 } from '@/lib/storage';
 
+export const runtime = 'nodejs';
+
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
 const STORAGE_PREFIX = 'files';
 

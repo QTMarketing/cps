@@ -4,6 +4,8 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { hasSupabaseStorage, downloadFromSupabase } from '@/lib/storage';
 
+export const runtime = 'nodejs';
+
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
 const STORAGE_PREFIX = 'files';
 

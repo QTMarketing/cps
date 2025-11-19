@@ -437,6 +437,7 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
                             </span>
                             <Input
                               id={`signer-file-${signer.id}`}
+                              name={`signature_${index}`}
                               type="file"
                               accept="image/png,image/jpeg"
                               className="hidden"
@@ -444,7 +445,6 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
                                 const file = event.target.files?.[0] ?? null;
                                 handleSignerFileChange(signer.id, file);
                               }}
-                              required={!signer.file}
                             />
                           </label>
 

@@ -12,6 +12,8 @@ import {
   uploadBufferToSupabase,
 } from '@/lib/storage';
 
+export const runtime = 'nodejs';
+
 function toBigInt(value: unknown, field: string): bigint | { error: string } {
   try {
     if (typeof value === 'bigint') return value;

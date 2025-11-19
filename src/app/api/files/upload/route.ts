@@ -8,6 +8,8 @@ import {
   downloadFromSupabase,
 } from '@/lib/storage';
 
+export const runtime = 'nodejs';
+
 // Configure multer-like functionality
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
 const STORAGE_PREFIX = 'files';
