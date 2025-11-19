@@ -1,44 +1,27 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-let browserClient: SupabaseClient | null = null;
-let adminClient: SupabaseClient | null = null;
-
-export const hasSupabasePublicConfig = Boolean(supabaseUrl && supabaseAnonKey);
-export const hasSupabaseServiceConfig = Boolean(
-  supabaseUrl && supabaseServiceKey,
-);
-
-export function getSupabaseClient(): SupabaseClient | null {
-  if (typeof window === 'undefined' || !hasSupabasePublicConfig) {
-    return null;
-  }
-  if (!browserClient) {
-    browserClient = createClient(supabaseUrl!, supabaseAnonKey!, {
-      auth: {
-        storageKey: 'cps-auth',
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    });
-  }
-  return browserClient;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error(
+    "Supabase credentials are missing. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+  );
 }
 
-export function getSupabaseAdminClient(): SupabaseClient | null {
-  if (typeof window !== 'undefined' || !hasSupabaseServiceConfig) {
-    return null;
+export const supabase: SupabaseClient = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
   }
-  if (!adminClient) {
-    adminClient = createClient(supabaseUrl!, supabaseServiceKey!, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-  }
-  return adminClient;
+);
+
+export const SUPABASE_STORES_BUCKET = "stores";
+
+export function getSupabaseAdminClient(): SupabaseClient {
+  return supabase;
 }

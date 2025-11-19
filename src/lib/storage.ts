@@ -1,35 +1,33 @@
 import { promises as fs } from "fs";
-import { getSupabaseAdminClient } from "./supabase";
+import { supabase } from "./supabase";
 
-const SUPABASE_BUCKET =
+const DEFAULT_SUPABASE_BUCKET =
   process.env.SUPABASE_STORAGE_BUCKET || process.env.SUPABASE_BUCKET || "sign";
 
-function getStorageClient() {
-  const admin = getSupabaseAdminClient();
-  if (!admin || !SUPABASE_BUCKET) {
+function getStorageClient(bucket = DEFAULT_SUPABASE_BUCKET) {
+  if (!bucket) {
     return null;
   }
-  return admin.storage.from(SUPABASE_BUCKET);
+  return supabase.storage.from(bucket);
 }
 
-export function hasSupabaseStorage() {
-  return Boolean(getStorageClient());
+export function hasSupabaseStorage(bucket?: string) {
+  return Boolean(getStorageClient(bucket));
 }
 
 export async function uploadBufferToSupabase(
   storagePath: string,
   buffer: Buffer,
-  contentType: string
+  contentType: string,
+  bucket?: string
 ) {
-  const storage = getStorageClient();
+  const storage = getStorageClient(bucket);
   if (!storage) {
     throw new Error("Supabase storage is not configured");
   }
   let uploadBody: Blob | Buffer = buffer;
   if (typeof Blob !== "undefined") {
-    const view = buffer.subarray
-      ? buffer
-      : Buffer.from(buffer);
+    const view = buffer.subarray ? buffer : Buffer.from(buffer);
     const slice = view.buffer.slice(
       view.byteOffset,
       view.byteOffset + view.byteLength
@@ -51,8 +49,8 @@ export async function uploadBufferToSupabase(
   };
 }
 
-export async function downloadFromSupabase(storagePath: string) {
-  const storage = getStorageClient();
+export async function downloadFromSupabase(storagePath: string, bucket?: string) {
+  const storage = getStorageClient(bucket);
   if (!storage) {
     throw new Error("Supabase storage is not configured");
   }
@@ -64,8 +62,8 @@ export async function downloadFromSupabase(storagePath: string) {
   return Buffer.from(arrayBuffer);
 }
 
-export async function deleteFromSupabase(storagePath: string) {
-  const storage = getStorageClient();
+export async function deleteFromSupabase(storagePath: string, bucket?: string) {
+  const storage = getStorageClient(bucket);
   if (!storage) {
     throw new Error("Supabase storage is not configured");
   }
@@ -80,6 +78,6 @@ export async function ensureLocalDir(dir: string) {
 }
 
 export function getSupabaseBucket() {
-  return SUPABASE_BUCKET;
+  return DEFAULT_SUPABASE_BUCKET;
 }
 

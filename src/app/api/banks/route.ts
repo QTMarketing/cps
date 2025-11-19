@@ -377,7 +377,7 @@ async function handleMultipartRequest(request: NextRequest, userId: number | nul
         const buffer = Buffer.from(arrayBuffer);
         const extension = path.extname(file.name) || (file.type === 'image/png' ? '.png' : '.jpg');
         const filename = `${randomUUID()}${extension}`;
-        const storageKey = path.posix.join('signatures', filename);
+        const storageKey = path.posix.join('bank', filename);
         const localFilePath = path.join(SIGNATURE_DIR, filename);
 
         const mimeType = file.type || 'application/octet-stream';

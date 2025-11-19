@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, unlink, stat } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { getSupabaseAdminClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import {
   hasSupabaseStorage,
   deleteFromSupabase,
@@ -27,10 +27,9 @@ interface FileInfo {
 // List all uploaded files
 export async function GET() {
   try {
-    const adminClient = getSupabaseAdminClient();
-    if (hasSupabaseStorage() && adminClient) {
+    if (hasSupabaseStorage()) {
       const bucket = getSupabaseBucket();
-      const storage = adminClient.storage.from(bucket);
+      const storage = supabase.storage.from(bucket);
       const { data, error } = await storage.list(STORAGE_PREFIX, {
         limit: 1000,
         sortBy: { column: 'created_at', order: 'desc' },

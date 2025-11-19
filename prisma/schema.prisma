@@ -89,6 +89,7 @@ model User {
   token_revoked_at                    DateTime?
   Bank_Bank_assigned_to_user_idToUser Bank[]    @relation("Bank_assigned_to_user_idToUser")
   Bank_User_assigned_bank_idToBank    Bank?     @relation("User_assigned_bank_idToBank", fields: [assigned_bank_id], references: [id])
+  managedStores                       Store[]
 }
 
 model Vendor {
@@ -115,6 +116,22 @@ model VendorBank {
   Vendor     Vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
 
   @@unique([vendor_id, bank_id])
+}
+
+model Store {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String
+  email     String?
+  phone     String?
+  region    String?
+  storeType String?
+  photoUrl  String?
+  status    String   @default("active")
+  managerId Int?
+  manager   User?    @relation(fields: [managerId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum Role {
