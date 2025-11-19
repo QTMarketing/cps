@@ -6,6 +6,11 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { Role } from '@/lib/rbac';
+import {
+  ensureLocalDir,
+  hasSupabaseStorage,
+  uploadBufferToSupabase,
+} from '@/lib/storage';
 
 function toBigInt(value: unknown, field: string): bigint | { error: string } {
   try {
@@ -50,10 +55,6 @@ type SignerPayload = {
 };
 
 const SIGNATURE_DIR = path.join(process.cwd(), 'public', 'uploads', 'signatures');
-
-async function ensureSignatureDir() {
-  await fs.mkdir(SIGNATURE_DIR, { recursive: true });
-}
 
 function extractToken(request: NextRequest): string | null {
   const authHeader = request.headers.get('authorization');
@@ -359,8 +360,6 @@ async function handleMultipartRequest(request: NextRequest, userId: number | nul
     );
   }
 
-    await ensureSignatureDir();
-
     const signerFiles = await Promise.all(
       signersMeta.map(async (meta) => {
         const file = formData.get(meta.file_field);
@@ -377,19 +376,32 @@ async function handleMultipartRequest(request: NextRequest, userId: number | nul
         const extension = path.extname(file.name) || (file.type === 'image/png' ? '.png' : '.jpg');
         const filename = `${randomUUID()}${extension}`;
         const storageKey = path.posix.join('signatures', filename);
-        const filePath = path.join(SIGNATURE_DIR, filename);
+        const localFilePath = path.join(SIGNATURE_DIR, filename);
 
-        await fs.writeFile(filePath, buffer);
+        const mimeType = file.type || 'application/octet-stream';
 
-        const base64 = buffer.toString('base64');
-        const dataUrl = `data:${file.type || 'image/png'};base64,${base64}`;
+        if (hasSupabaseStorage()) {
+          const { publicUrl } = await uploadBufferToSupabase(
+            storageKey,
+            buffer,
+            mimeType,
+          );
+          return {
+            meta,
+            storageKey,
+            url: publicUrl,
+            mimeType,
+          };
+        }
+
+        await ensureLocalDir(SIGNATURE_DIR);
+        await fs.writeFile(localFilePath, buffer);
 
         return {
           meta,
           storageKey,
           url: `/uploads/signatures/${filename}`,
-          mimeType: file.type || 'application/octet-stream',
-          dataUrl,
+          mimeType,
         };
       }),
     );
@@ -400,7 +412,7 @@ async function handleMultipartRequest(request: NextRequest, userId: number | nul
       const bank = await tx.bank.create({
         data: {
           ...bankData,
-          signature_url: defaultSignature?.dataUrl ?? null,
+          signature_url: defaultSignature?.url ?? null,
         },
       });
 
@@ -442,7 +454,7 @@ async function handleMultipartRequest(request: NextRequest, userId: number | nul
           id: signerRecord.id,
           full_name: signerRecord.full_name,
           is_default: signerFile.meta.is_default,
-          signature_url: signerFile.dataUrl,
+          signature_url: signerFile.url,
         });
       }
 

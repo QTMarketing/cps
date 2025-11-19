@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { hasS3Config, putObject } from '@/lib/s3';
+import { hasSupabaseStorage, uploadBufferToSupabase, ensureLocalDir } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 
@@ -44,9 +45,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (hasSupabaseStorage()) {
+      try {
+        const { publicUrl } = await uploadBufferToSupabase(key, buffer, file.type);
+        return NextResponse.json({ url: publicUrl });
+      } catch (err: any) {
+        return NextResponse.json(
+          { error: 'Supabase upload failed', details: err?.message || String(err) },
+          { status: 500 },
+        );
+      }
+    }
+
     // Local filesystem fallback (development only)
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'invoices', yyyy, mm);
-    await fs.mkdir(uploadsDir, { recursive: true });
+    await ensureLocalDir(uploadsDir);
     const filePath = path.join(uploadsDir, filename);
     await fs.writeFile(filePath, buffer);
     const publicUrl = `/uploads/invoices/${yyyy}/${mm}/${filename}`;

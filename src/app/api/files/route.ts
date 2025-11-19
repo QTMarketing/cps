@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, unlink, stat } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { getSupabaseAdminClient } from '@/lib/supabase';
+import {
+  hasSupabaseStorage,
+  deleteFromSupabase,
+  getSupabaseBucket,
+} from '@/lib/storage';
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
+const STORAGE_PREFIX = 'files';
 
 interface FileInfo {
   id: string;
@@ -18,6 +25,66 @@ interface FileInfo {
 // List all uploaded files
 export async function GET() {
   try {
+    const adminClient = getSupabaseAdminClient();
+    if (hasSupabaseStorage() && adminClient) {
+      const bucket = getSupabaseBucket();
+      const storage = adminClient.storage.from(bucket);
+      const { data, error } = await storage.list(STORAGE_PREFIX, {
+        limit: 1000,
+        sortBy: { column: 'created_at', order: 'desc' },
+      });
+      if (error) {
+        throw new Error(error.message);
+      }
+      const fileInfos: FileInfo[] = (data || [])
+        .filter((item) => item.name && !item.name.endsWith('/'))
+        .map((item) => {
+          const file = item.name!;
+          const parts = file.split('.');
+          const extension = parts.pop();
+          const nameWithoutExt = parts.join('.');
+          const nameParts = nameWithoutExt.split('-');
+          const originalName =
+            nameParts.slice(2).join('-') + (extension ? `.${extension}` : '');
+
+          let contentType = 'application/octet-stream';
+          switch (extension?.toLowerCase()) {
+            case 'pdf':
+              contentType = 'application/pdf';
+              break;
+            case 'jpg':
+            case 'jpeg':
+              contentType = 'image/jpeg';
+              break;
+            case 'png':
+              contentType = 'image/png';
+              break;
+            case 'gif':
+              contentType = 'image/gif';
+              break;
+            case 'webp':
+              contentType = 'image/webp';
+              break;
+          }
+
+          const { data: publicUrlData } = storage.getPublicUrl(
+            `${STORAGE_PREFIX}/${file}`,
+          );
+
+          return {
+            id: item.id ?? `${nameParts[0]}-${nameParts[1]}`,
+            fileName: file,
+            originalName: originalName || file,
+            size: item.metadata?.size ?? 0,
+            type: contentType,
+            url: publicUrlData.publicUrl,
+            uploadedAt: item.created_at || new Date().toISOString(),
+          };
+        });
+
+      return NextResponse.json(fileInfos);
+    }
+
     if (!existsSync(UPLOAD_DIR)) {
       return NextResponse.json([]);
     }
@@ -29,17 +96,14 @@ export async function GET() {
       const filePath = join(UPLOAD_DIR, file);
       const stats = await stat(filePath);
       
-      // Skip directories
       if (stats.isDirectory()) continue;
       
-      // Extract original name from filename (remove timestamp and random part)
       const parts = file.split('.');
       const extension = parts.pop();
       const nameWithoutExt = parts.join('.');
       const nameParts = nameWithoutExt.split('-');
       const originalName = nameParts.slice(2).join('-') + (extension ? `.${extension}` : '');
       
-      // Determine content type
       let contentType = 'application/octet-stream';
       switch (extension?.toLowerCase()) {
         case 'pdf':
@@ -71,7 +135,6 @@ export async function GET() {
       });
     }
     
-    // Sort by upload date (newest first)
     fileInfos.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
     
     return NextResponse.json(fileInfos);
@@ -96,6 +159,14 @@ export async function DELETE(request: NextRequest) {
         { error: 'No file specified' },
         { status: 400 }
       );
+    }
+    
+    if (hasSupabaseStorage()) {
+      const storagePath = fileName.includes('/')
+        ? fileName
+        : `${STORAGE_PREFIX}/${fileName}`;
+      await deleteFromSupabase(storagePath);
+      return NextResponse.json({ success: true });
     }
     
     const filePath = join(UPLOAD_DIR, fileName);

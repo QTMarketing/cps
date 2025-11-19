@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { hasSupabaseStorage, downloadFromSupabase } from '@/lib/storage';
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
+const STORAGE_PREFIX = 'files';
 
 export async function GET(
   request: NextRequest,
@@ -20,15 +22,24 @@ export async function GET(
     }
     
     const filePath = join(UPLOAD_DIR, fileName);
+    let fileBuffer: Buffer | null = null;
     
-    if (!existsSync(filePath)) {
+    if (existsSync(filePath)) {
+      fileBuffer = await readFile(filePath);
+    } else if (hasSupabaseStorage()) {
+      try {
+        fileBuffer = await downloadFromSupabase(`${STORAGE_PREFIX}/${fileName}`);
+      } catch (error) {
+        console.error('Supabase download error:', error);
+      }
+    }
+    
+    if (!fileBuffer) {
       return NextResponse.json(
         { error: 'File not found' },
         { status: 404 }
       );
     }
-    
-    const fileBuffer = await readFile(filePath);
     
     // Determine content type based on file extension
     const extension = fileName.split('.').pop()?.toLowerCase();
@@ -53,7 +64,7 @@ export async function GET(
         break;
     }
     
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(fileBuffer as any, {
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${fileName}"`,

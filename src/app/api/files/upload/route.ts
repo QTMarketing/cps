@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import {
+  hasSupabaseStorage,
+  uploadBufferToSupabase,
+  downloadFromSupabase,
+} from '@/lib/storage';
 
 // Configure multer-like functionality
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
+const STORAGE_PREFIX = 'files';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
   'application/pdf',
@@ -45,8 +51,6 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureUploadDir();
-    
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
@@ -57,7 +61,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file
     const validation = validateFile(file);
     if (!validation.valid) {
       return NextResponse.json(
@@ -66,24 +69,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename
     const fileName = generateFileName(file.name);
+    const storageKey = `${STORAGE_PREFIX}/${fileName}`;
     const filePath = join(UPLOAD_DIR, fileName);
     
-    // Convert file to buffer and save
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    await writeFile(filePath, buffer);
+    let fileUrl: string;
+    let storedPath = fileName;
+
+    if (hasSupabaseStorage()) {
+      const { publicUrl, path } = await uploadBufferToSupabase(
+        storageKey,
+        buffer,
+        file.type || 'application/octet-stream',
+      );
+      fileUrl = publicUrl;
+      storedPath = path;
+    } else {
+      await ensureUploadDir();
+      await writeFile(filePath, buffer);
+      fileUrl = `/api/files/${fileName}`;
+    }
     
-    // Generate public URL
-    const fileUrl = `/api/files/${fileName}`;
-    
-    // Return file info
     return NextResponse.json({
       id: fileName.split('.')[0],
       fileName: file.name,
-      filePath: fileName,
+      filePath: storedPath,
       url: fileUrl,
       size: file.size,
       type: file.type,
@@ -113,17 +126,25 @@ export async function GET(request: NextRequest) {
     }
     
     const filePath = join(UPLOAD_DIR, fileName);
+    let fileBuffer: Buffer | null = null;
     
-    if (!existsSync(filePath)) {
+    if (existsSync(filePath)) {
+      fileBuffer = await import('fs').then(fs => fs.promises.readFile(filePath));
+    } else if (hasSupabaseStorage()) {
+      try {
+        fileBuffer = await downloadFromSupabase(`${STORAGE_PREFIX}/${fileName}`);
+      } catch (error) {
+        console.error('Supabase download error:', error);
+      }
+    }
+    
+    if (!fileBuffer) {
       return NextResponse.json(
         { error: 'File not found' },
         { status: 404 }
       );
     }
     
-    const fileBuffer = await import('fs').then(fs => fs.promises.readFile(filePath));
-    
-    // Determine content type
     const extension = fileName.split('.').pop()?.toLowerCase();
     let contentType = 'application/octet-stream';
     
@@ -146,7 +167,7 @@ export async function GET(request: NextRequest) {
         break;
     }
     
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(fileBuffer as any, {
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${fileName}"`,
