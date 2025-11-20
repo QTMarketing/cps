@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ChequeViewModel } from "@/lib/cheques/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   cheque: ChequeViewModel;
@@ -69,6 +69,10 @@ export const buildMicrFromCheque = (cheque: ChequeViewModel) => {
 export function ChequeLayout({ cheque, className }: Props) {
   const [signatureError, setSignatureError] = useState(false);
   const normalizedSignatureUrl = normalizeSignatureUrl(cheque.bank.signatureUrl);
+  
+  useEffect(() => {
+    setSignatureError(false);
+  }, [normalizedSignatureUrl]);
   
   return (
     <div className={cn("cheque-container", className)}>
