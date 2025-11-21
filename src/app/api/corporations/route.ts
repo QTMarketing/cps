@@ -1,40 +1,79 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireRole, jsonGuardError } from "@/lib/guards";
+import { Role } from "@/lib/roles";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-// GET: return a fake array of corporations for now
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const fake = [
-      { id: 1, name: 'Acme Holdings' },
-      { id: 2, name: 'Global Retail Corp' },
-      { id: 3, name: 'Northwest Foods LLC' },
-    ];
-    return NextResponse.json({ corporations: fake });
-  } catch (e: any) {
-    return NextResponse.json({ error: 'Failed to load corporations' }, { status: 500 });
+    await requireRole(req, [Role.ADMIN, Role.SUPER_ADMIN]);
+    const corporations = await prisma.corporation.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        owner: true,
+        ein: true,
+      },
+    });
+    return NextResponse.json({ corporations });
+  } catch (error: any) {
+    if (typeof error?.status === "number") {
+      return jsonGuardError(error);
+    }
+    console.error("Error loading corporations:", error);
+    return NextResponse.json(
+      { error: "Failed to load corporations" },
+      { status: 500 }
+    );
   }
 }
 
-// POST: accept { name, owner, ein } and return mock id/name
 export async function POST(req: NextRequest) {
   try {
+    await requireRole(req, [Role.ADMIN, Role.SUPER_ADMIN]);
     const body = await req.json().catch(() => ({}));
-    const name = String(body?.name || '').trim();
-    const owner = body?.owner ? String(body.owner) : null;
-    const ein = body?.ein ? String(body.ein) : null;
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const owner =
+      typeof body?.owner === "string" && body.owner.trim().length > 0
+        ? body.owner.trim()
+        : null;
+    const ein =
+      typeof body?.ein === "string" && body.ein.trim().length > 0
+        ? body.ein.trim()
+        : null;
 
     if (!name) {
-      return NextResponse.json({ error: 'name is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Corporation name is required" },
+        { status: 400 }
+      );
     }
 
-    // Mock insert and id generation
-    const id = Math.floor(Math.random() * 1_000_000) + 1;
-    return NextResponse.json({ id, name, owner, ein }, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: 'Failed to create corporation' }, { status: 500 });
+    const corporation = await prisma.corporation.create({
+      data: {
+        name,
+        owner,
+        ein,
+      },
+      select: {
+        id: true,
+        name: true,
+        owner: true,
+        ein: true,
+      },
+    });
+
+    return NextResponse.json(corporation, { status: 201 });
+  } catch (error: any) {
+    if (typeof error?.status === "number") {
+      return jsonGuardError(error);
+    }
+    console.error("Error creating corporation:", error);
+    return NextResponse.json(
+      { error: "Failed to create corporation" },
+      { status: 500 }
+    );
   }
 }
-
-
-

@@ -28,6 +28,14 @@ export const chequeSelect = {
       routing_number: true,
       account_number: true,
       signature_url: true,
+      Corporation: {
+        select: {
+          id: true,
+          name: true,
+          owner: true,
+          ein: true,
+        },
+      },
       BankSigner: {
         where: { is_default: true },
         select: {
@@ -80,6 +88,12 @@ type ChequeRecord = {
     return_city?: string | null;
     return_state?: string | null;
     return_zip?: string | number | null;
+    Corporation?: {
+      id: number;
+      name: string;
+      owner: string | null;
+      ein: string | null;
+    } | null;
   };
 };
 
@@ -138,6 +152,13 @@ export function mapChequeRecord(record: ChequeRecord): ChequeViewModel {
       routingNumber: bankRecord.routing_number?.toString() || "",
       accountNumber: bankRecord.account_number?.toString() || "",
       signatureUrl: bankRecord.signature_url || fallbackSignature,
+      corporation: bankRecord.Corporation
+        ? {
+            name: bankRecord.Corporation.name,
+            owner: bankRecord.Corporation.owner,
+            ein: bankRecord.Corporation.ein,
+          }
+        : null,
     },
     payee,
   };

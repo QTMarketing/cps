@@ -46,6 +46,46 @@ const renderChequeHtml = (cheque: ChequeViewModel, micrFontDataUrl: string) => {
     ? `@font-face { font-family: "MICR"; src: url('${micrFontDataUrl}') format("truetype"); font-weight: normal; font-style: normal; }`
     : "";
 
+  const corporationBlock = cheque.bank.corporation
+    ? `
+        <p class="bank-account-line bank-account-name">${cheque.bank.corporation.name}</p>
+        ${
+          cheque.bank.corporation.owner
+            ? `<p class="bank-account-line">Owner: ${cheque.bank.corporation.owner}</p>`
+            : ""
+        }
+        ${
+          cheque.bank.corporation.ein
+            ? `<p class="bank-account-line">EIN: ${cheque.bank.corporation.ein}</p>`
+            : ""
+        }
+      `
+    : `
+        ${
+          cheque.bank.accountName
+            ? `<p class="bank-account-line bank-account-name">${cheque.bank.accountName}</p>`
+            : ""
+        }
+        ${
+          cheque.bank.dba
+            ? `<p class="bank-account-line bank-dba">${cheque.bank.dba}</p>`
+            : ""
+        }
+      `;
+
+  const addressBlock = `
+    ${
+      cheque.bank.addressLine1
+        ? `<p class="bank-account-line">${cheque.bank.addressLine1}</p>`
+        : ""
+    }
+    ${
+      cheque.bank.cityStateZip
+        ? `<p class="bank-account-line">${cheque.bank.cityStateZip}</p>`
+        : ""
+    }
+  `;
+
   return `<!DOCTYPE html>
   <html>
     <head>
@@ -222,26 +262,8 @@ const renderChequeHtml = (cheque: ChequeViewModel, micrFontDataUrl: string) => {
           <div class="status">ISSUED</div>
           <div class="row">
             <div class="bank-block">
-              ${
-                cheque.bank.accountName
-                  ? `<p class="bank-account-line bank-account-name">${cheque.bank.accountName}</p>`
-                  : ""
-              }
-              ${
-                cheque.bank.dba
-                  ? `<p class="bank-account-line bank-dba">${cheque.bank.dba}</p>`
-                  : ""
-              }
-              ${
-                cheque.bank.addressLine1
-                  ? `<p class="bank-account-line">${cheque.bank.addressLine1}</p>`
-                  : ""
-              }
-              ${
-                cheque.bank.cityStateZip
-                  ? `<p class="bank-account-line">${cheque.bank.cityStateZip}</p>`
-                  : ""
-              }
+              ${corporationBlock}
+              ${addressBlock}
             </div>
             <div class="bank-center">
               <h3>${cheque.bank.name}</h3>

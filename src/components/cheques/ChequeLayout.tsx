@@ -69,6 +69,7 @@ export const buildMicrFromCheque = (cheque: ChequeViewModel) => {
 export function ChequeLayout({ cheque, className }: Props) {
   const [signatureError, setSignatureError] = useState(false);
   const normalizedSignatureUrl = normalizeSignatureUrl(cheque.bank.signatureUrl);
+  const corporation = cheque.bank.corporation;
   
   useEffect(() => {
     setSignatureError(false);
@@ -80,10 +81,24 @@ export function ChequeLayout({ cheque, className }: Props) {
 
       <div className="cheque-section items-start">
         <div className="bank-block space-y-1">
-          {cheque.bank.accountName && (
-            <p className="bank-account-line bank-account-name">{cheque.bank.accountName}</p>
+          {corporation ? (
+            <>
+              <p className="bank-account-line bank-account-name">{corporation.name}</p>
+              {corporation.owner && (
+                <p className="bank-account-line">Owner: {corporation.owner}</p>
+              )}
+              {corporation.ein && (
+                <p className="bank-account-line">EIN: {corporation.ein}</p>
+              )}
+            </>
+          ) : (
+            <>
+              {cheque.bank.accountName && (
+                <p className="bank-account-line bank-account-name">{cheque.bank.accountName}</p>
+              )}
+              {cheque.bank.dba && <p className="bank-account-line bank-dba">{cheque.bank.dba}</p>}
+            </>
           )}
-          {cheque.bank.dba && <p className="bank-account-line bank-dba">{cheque.bank.dba}</p>}
           {cheque.bank.addressLine1 && (
             <p className="bank-account-line">{cheque.bank.addressLine1}</p>
           )}

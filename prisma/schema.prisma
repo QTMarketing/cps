@@ -20,9 +20,11 @@ model Bank {
   dba                                 String?
   signature_name                      String?
   signature_url                       String?
+  corporation_id                      Int?
   created_at                          DateTime     @default(now())
   account_type                        String       @default("CHECKING")
   assigned_to_user_id                 Int?
+  Corporation                         Corporation? @relation(fields: [corporation_id], references: [id])
   User_Bank_assigned_to_user_idToUser User?        @relation("Bank_assigned_to_user_idToUser", fields: [assigned_to_user_id], references: [id])
   BankSigner                          BankSigner[]
   Check                               Check[]
@@ -116,6 +118,15 @@ model VendorBank {
   Vendor     Vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
 
   @@unique([vendor_id, bank_id])
+}
+
+model Corporation {
+  id         Int      @id @default(autoincrement())
+  name       String
+  owner      String?
+  ein        String?
+  created_at DateTime @default(now())
+  Bank       Bank[]
 }
 
 model Store {

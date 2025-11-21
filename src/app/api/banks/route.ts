@@ -48,6 +48,11 @@ type BankPayload = {
   account_type: string;
   assigned_to_user_id: null;
   signature_url: string | null;
+  Corporation?: {
+    connect: {
+      id: number;
+    };
+  };
 };
 
 type SignerPayload = {
@@ -124,6 +129,18 @@ function validateBankPayload(body: any): { data?: BankPayload; error?: string } 
     returnZip = zipResult;
   }
 
+  let corporationId: number | null = null;
+  if (body.corporation_id != null && body.corporation_id !== '') {
+    const parsed =
+      typeof body.corporation_id === 'number'
+        ? body.corporation_id
+        : Number(body.corporation_id);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return { error: 'corporation_id must be a positive integer' };
+    }
+    corporationId = parsed;
+  }
+
   return {
     data: {
       bank_name: body.bank_name.trim(),
@@ -139,6 +156,13 @@ function validateBankPayload(body: any): { data?: BankPayload; error?: string } 
       dba: body.dba ? body.dba.trim() : null,
       signature_name: body.signature_name ? body.signature_name.trim() : null,
       signature_url: null,
+      ...(corporationId
+        ? {
+            Corporation: {
+              connect: { id: corporationId },
+            },
+          }
+        : {}),
     },
   };
 }
@@ -227,6 +251,7 @@ export async function GET(request: NextRequest) {
     const banks = await prisma.bank.findMany({
       orderBy: { created_at: 'desc' },
       include: {
+        Corporation: true,
         BankSigner: {
           include: {
             Signer: {
@@ -261,6 +286,14 @@ export async function GET(request: NextRequest) {
         return_zip: bank.return_zip ? bank.return_zip.toString() : null,
         created_at: bank.created_at,
         account_type: bank.account_type,
+        corporation: bank.Corporation
+          ? {
+              id: bank.Corporation.id,
+              name: bank.Corporation.name,
+              owner: bank.Corporation.owner,
+              ein: bank.Corporation.ein,
+            }
+          : null,
         signers: bank.BankSigner.map((link) => ({
           id: link.Signer.id,
           full_name: link.Signer.full_name,

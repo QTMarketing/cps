@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 export interface NewCorporationModalProps {
   open: boolean;
@@ -15,11 +15,6 @@ export default function NewCorporationModal({ open, onClose, onCreated }: NewCor
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const token = useMemo(() => {
-    if (typeof document === "undefined") return undefined;
-    return document.cookie.split("; ").find((r) => r.startsWith("auth-token="))?.split("=")[1];
-  }, []);
-
   if (!open) return null;
 
   const inputClass =
@@ -31,10 +26,10 @@ export default function NewCorporationModal({ open, onClose, onCreated }: NewCor
     if (!name.trim()) { setError("Corporation name is required"); return; }
     try {
       setSubmitting(true);
-      const headers: any = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
       const res = await fetch("/api/corporations", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name, owner: owner || null, ein: ein || null }),
       } as RequestInit);
       if (!res.ok) {

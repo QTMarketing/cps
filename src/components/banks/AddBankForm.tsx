@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { Role } from "@/lib/roles";
+import NewCorporationModal from "@/components/bank/NewCorporationModal";
 
 type BankFormState = {
   bank_name: string;
@@ -80,12 +81,24 @@ type AddBankFormProps = {
   userRole: Role;
 };
 
+type Corporation = {
+  id: number;
+  name: string;
+  owner?: string | null;
+  ein?: string | null;
+};
+
 export default function AddBankForm({ userRole }: AddBankFormProps) {
   const [form, setForm] = useState<BankFormState>(initialForm);
   const [signers, setSigners] = useState<SignerState[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   const [mounted, setMounted] = useState(false);
+  const [corporations, setCorporations] = useState<Corporation[]>([]);
+  const [selectedCorporationId, setSelectedCorporationId] = useState<string>("");
+  const [corporationsLoading, setCorporationsLoading] = useState(false);
+  const [corporationError, setCorporationError] = useState<string | null>(null);
+  const [isCorpModalOpen, setIsCorpModalOpen] = useState(false);
   
   const isSuperAdmin = userRole === Role.SUPER_ADMIN;
 
@@ -99,6 +112,28 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
       setSigners([createSigner(initialId, true)]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const loadCorporations = async () => {
+      try {
+        setCorporationsLoading(true);
+        const response = await fetch("/api/corporations", { credentials: "include" });
+        if (!response.ok) {
+          throw new Error("Failed to load corporations");
+        }
+        const data = await response.json().catch(() => ({}));
+        setCorporations(data?.corporations ?? []);
+        setCorporationError(null);
+      } catch (error) {
+        console.error(error);
+        setCorporationError("Unable to load corporations. You can still create one below.");
+      } finally {
+        setCorporationsLoading(false);
+      }
+    };
+
+    loadCorporations();
   }, []);
 
   const numericFields = useMemo(
@@ -200,6 +235,7 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
         : `signer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       return [createSigner(newId, true)];
     });
+    setSelectedCorporationId("");
   }, []);
 
   const validate = useCallback((): string[] => {
@@ -254,7 +290,13 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
       }
 
       const formData = new FormData();
-      formData.append("bank", JSON.stringify(form));
+      formData.append(
+        "bank",
+        JSON.stringify({
+          ...form,
+          corporation_id: selectedCorporationId ? Number(selectedCorporationId) : null,
+        }),
+      );
 
       const signersMeta = signers.map((signer, index) => ({
         full_name: signer.full_name.trim(),
@@ -286,6 +328,7 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
 
         setToast({ variant: "success", message: "Bank created successfully." });
         resetForm();
+        setSelectedCorporationId("");
       } catch (error) {
         setToast({
           variant: "error",
@@ -376,6 +419,56 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
                     <SelectItem value="BUSINESS" className="text-slate-100">BUSINESS</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-100">Corporation</h3>
+                  <p className="text-sm text-slate-400">
+                    Link this bank to a corporation record or create a new corporation.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCorpModalOpen(true)}
+                  className="border-slate-700 bg-slate-900/70 text-slate-100 hover:bg-slate-800"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Corporation
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-300">Select Corporation</Label>
+                <Select
+                  value={selectedCorporationId}
+                  onValueChange={(value) => setSelectedCorporationId(value === "none" ? "" : value)}
+                  disabled={corporationsLoading}
+                >
+                  <SelectTrigger className="border-slate-800 bg-slate-900/80 text-slate-50 focus:ring-slate-500">
+                    <SelectValue placeholder={corporationsLoading ? "Loading..." : "Choose corporation"} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-50">
+                    {corporations.length === 0 && !corporationsLoading ? (
+                      <SelectItem value="none" disabled>
+                        No corporations available
+                      </SelectItem>
+                    ) : (
+                      corporations.map((corp) => (
+                        <SelectItem key={corp.id} value={String(corp.id)}>
+                          {corp.name}
+                          {corp.owner ? ` — ${corp.owner}` : ""}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {corporationError && (
+                  <p className="text-xs text-amber-400">{corporationError}</p>
+                )}
               </div>
             </div>
 
@@ -515,6 +608,20 @@ export default function AddBankForm({ userRole }: AddBankFormProps) {
           </form>
         </CardContent>
       </Card>
+
+      <NewCorporationModal
+        open={isCorpModalOpen}
+        onClose={() => setIsCorpModalOpen(false)}
+        onCreated={(corp) => {
+          setCorporations((prev) => {
+            if (prev.some((existing) => existing.id === corp.id)) {
+              return prev;
+            }
+            return [...prev, corp];
+          });
+          setSelectedCorporationId(String(corp.id));
+        }}
+      />
     </div>
   );
 }

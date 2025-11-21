@@ -17,6 +17,11 @@ export interface ChequeViewModel {
     routingNumber: string;
     accountNumber: string;
     signatureUrl: string | null;
+    corporation?: {
+      name: string;
+      owner?: string | null;
+      ein?: string | null;
+    } | null;
   };
   payee: {
     id: string | null;
