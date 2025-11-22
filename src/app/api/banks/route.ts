@@ -46,7 +46,6 @@ type BankPayload = {
   dba: string | null;
   signature_name: string | null;
   account_type: string;
-  assigned_to_user_id: null;
   signature_url: string | null;
   Corporation?: {
     connect: {
@@ -141,30 +140,28 @@ function validateBankPayload(body: any): { data?: BankPayload; error?: string } 
     corporationId = parsed;
   }
 
-  return {
-    data: {
-      bank_name: body.bank_name.trim(),
-      account_number: accountNumber,
-      routing_number: routingNumber,
-      account_type: body.account_type,
-      assigned_to_user_id: null,
-      return_address: body.return_address ? body.return_address.trim() : null,
-      return_city: body.return_city ? body.return_city.trim() : null,
-      return_state: body.return_state ? body.return_state.trim() : null,
-      return_zip: returnZip,
-      account_name: body.account_name ? body.account_name.trim() : null,
-      dba: body.dba ? body.dba.trim() : null,
-      signature_name: body.signature_name ? body.signature_name.trim() : null,
-      signature_url: null,
-      ...(corporationId
-        ? {
-            Corporation: {
-              connect: { id: corporationId },
-            },
-          }
-        : {}),
-    },
+  const data: BankPayload = {
+    bank_name: body.bank_name.trim(),
+    account_number: accountNumber,
+    routing_number: routingNumber,
+    account_type: body.account_type,
+    return_address: body.return_address ? body.return_address.trim() : null,
+    return_city: body.return_city ? body.return_city.trim() : null,
+    return_state: body.return_state ? body.return_state.trim() : null,
+    return_zip: returnZip,
+    account_name: body.account_name ? body.account_name.trim() : null,
+    dba: body.dba ? body.dba.trim() : null,
+    signature_name: body.signature_name ? body.signature_name.trim() : null,
+    signature_url: null,
   };
+
+  if (corporationId) {
+    data.Corporation = {
+      connect: { id: corporationId },
+    };
+  }
+
+  return { data };
 }
 
 function validateSignersPayload(raw: any): { data?: SignerPayload[]; error?: string } {
