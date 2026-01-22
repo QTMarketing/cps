@@ -181,6 +181,67 @@ This will:
 - `npm run db:migrate` - Run database migrations
 - `npm run db:studio` - Open Prisma Studio
 
+## Cheque PDF Generator
+
+The cheque generator produces bank-ready PDFs with MICR encoding using `pdf-lib`.
+
+### Prerequisites
+
+- Place the MICR font file `micr-encoding.regular.ttf` in `public/fonts/` (already included in this repo).
+- Signature images can be uploaded via the Signatures uploader (stored under `public/uploads/signatures`).
+
+### API Usage
+
+```
+POST /api/cheque/print
+Authorization: Bearer <auth-token>
+Content-Type: application/json
+```
+
+Sample payload:
+
+```json
+{
+  "bankName": "First National Bank",
+  "dbaName": "QT Office DBA",
+  "corporationName": "QuickTrack Inc.",
+  "address": {
+    "street": "123 Main Street",
+    "city": "Los Angeles",
+    "state": "CA",
+    "zip": "90001"
+  },
+  "chequeNumber": "1050",
+  "routingNumber": "123456789",
+  "accountNumber": "987654321",
+  "merchantNumber": "M-55421",
+  "payeeName": "John Doe",
+  "amount": 1523.75,
+  "memo": "Invoice #4471",
+  "date": "November 18, 2025",
+  "signatureImageURL": "/uploads/signatures/6a2f3b5b-38a8-4651-9a94-0989fac78805.jpg"
+}
+```
+
+The response is a PDF stream suitable for download or inline viewing.
+
+### Cheque Test UI
+
+- Navigate to `/admin/cheque-test` (SUPER_ADMIN only).
+- Paste or edit the JSON payload.
+- Click “Generate PDF” to download the cheque.
+- Use “Reset Sample” to restore the default payload.
+
+## QA Checklist
+
+- [ ] Login/logout flows work for USER, ADMIN, SUPER_ADMIN roles.
+- [ ] Sidebar links respect role visibility (e.g., cheque test only for SUPER_ADMIN).
+- [ ] Write Checks page can create cheques and upload invoices; invoices appear in Reports/Recent Checks.
+- [ ] `/api/cheque/print` returns a PDF with correct MICR line, signature, and formatted data.
+- [ ] `/admin/cheque-test` successfully downloads PDFs for valid payloads and surfaces validation errors.
+- [ ] MICR font file exists in `public/fonts/` so printed cheques have proper routing/account encoding.
+- [ ] README instructions are sufficient for another developer to run migrations, upload invoices, and print cheques.
+
 ## Database Management
 
 ### Prisma Studio

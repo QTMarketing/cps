@@ -10,7 +10,7 @@ const PUBLIC_PATHS = [
   "/favicon.ico",
 ];
 
-const PUBLIC_PREFIXES = ["/_next", "/api/auth", "/api/public", "/public", "/uploads"];
+const PUBLIC_PREFIXES = ["/_next", "/api/auth", "/api/public", "/api/uploads", "/api/check-users", "/public", "/uploads"];
 
 const ROLE_ALLOWLIST: Record<Role, string[]> = {
   USER: ["/write-checks"],

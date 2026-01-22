@@ -10,13 +10,28 @@ const currency = new Intl.NumberFormat("en-US", {
   currency: "USD",
 });
 
+const getStoreNumber = (storeName?: string | null) => {
+  if (!storeName) return "";
+  const match = storeName.match(/\d+/);
+  return match ? match[0] : "";
+};
+
 const buildMicr = (cheque: ChequeViewModel) => {
   const normalize = (value: string, length: number) =>
     value.replace(/\D/g, "").padStart(length, "0");
-  const number = normalize(cheque.number, 6);
+  // MICR line format: ⑆ check_number ⑈ routing_number ⑈ account_number ⑈
+  // ⑆ = Transit symbol (U+2446)
+  // ⑈ = On-us symbol (U+2448)
+  const TRANSIT_SYMBOL = String.fromCharCode(0x2446); // ⑆
+  const ON_US_SYMBOL = String.fromCharCode(0x2448);   // ⑈
+  
+  // cheque.number already has the store prefix, so use it directly
+  const checkNumberNormalized = normalize(cheque.number || "", 9);
   const routing = normalize(cheque.bank.routingNumber, 9);
   const account = normalize(cheque.bank.accountNumber, 9);
-  return `⛓ ${number}     ${routing}     ${account}`;
+  
+  // Format: ⑆ check_number ⑈ routing_number ⑈ account_number ⑈
+  return `${TRANSIT_SYMBOL} ${checkNumberNormalized} ${ON_US_SYMBOL} ${routing} ${ON_US_SYMBOL} ${account} ${ON_US_SYMBOL}`;
 };
 
 let cachedMicrFontDataUrl: string | null = null;
@@ -49,6 +64,11 @@ const renderChequeHtml = (cheque: ChequeViewModel, micrFontDataUrl: string) => {
   const corporationBlock = cheque.bank.corporation
     ? `
         <p class="bank-account-line bank-account-name">${cheque.bank.corporation.name}</p>
+        ${
+          cheque.bank.dba
+            ? `<p class="bank-account-line bank-dba">${cheque.bank.dba}</p>`
+            : ""
+        }
         ${
           cheque.bank.corporation.owner
             ? `<p class="bank-account-line">Owner: ${cheque.bank.corporation.owner}</p>`
@@ -86,6 +106,20 @@ const renderChequeHtml = (cheque: ChequeViewModel, micrFontDataUrl: string) => {
     }
   `;
 
+  const formattedDate = new Date(cheque.createdAt).toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric"
+  });
+  
+  // cheque.number already has the store prefix from formatCheckNumber, so use it directly
+  const checkNumber = cheque.number || "N/A";
+
+  const businessName = cheque.bank.corporation?.name || cheque.bank.accountName || '';
+  const businessDba = cheque.bank.dba || '';
+  const businessAddress1 = cheque.bank.addressLine1 || '';
+  const businessAddress2 = cheque.bank.cityStateZip || '';
+
   return `<!DOCTYPE html>
   <html>
     <head>
@@ -98,214 +132,379 @@ const renderChequeHtml = (cheque: ChequeViewModel, micrFontDataUrl: string) => {
         }
         body {
           font-family: "Helvetica Neue", Arial, sans-serif;
-          background: #f4f5f8;
+          background: #fff;
           margin: 0;
           padding: 0;
           display: flex;
           justify-content: center;
         }
         .cheque-wrapper {
-          width: 840px;
-          padding: 20px;
+          width: 816px; /* 8.5 inches at 96 DPI */
+          min-height: 1056px; /* 11 inches at 96 DPI */
+          padding: 40px 50px;
+          box-sizing: border-box;
         }
         .cheque {
           background: #fff;
-          border: 1px solid #d6d9e1;
-          border-radius: 16px;
-          padding: 32px;
-          box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
-          position: relative;
+          border: 2px solid #000;
+          padding: 40px 50px;
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 24px;
+          box-sizing: border-box;
         }
-        .status {
-          position: absolute;
-          top: 12px;
-          left: 50%;
-          transform: translateX(-50%);
-          padding: 4px 16px;
-          border-radius: 999px;
-          border: 1px solid #d6dae8;
-          background: #f6f7fb;
-          font-size: 12px;
-          letter-spacing: 0.24em;
-          text-transform: uppercase;
-          color: #475569;
-        }
-        .row {
+        .cheque-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          gap: 24px;
+          margin-bottom: 20px;
+          gap: 20px;
         }
-        .bank-account-line {
-          margin: 2px 0;
-          font-size: 13px;
-          color: #475569;
+        .cheque-header-center {
+          flex: 1;
+          text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        .bank-account-name,
-        .bank-dba {
+        .bank-name-header {
+          font-size: 18px;
           font-weight: 700;
+          color: #000;
+          text-align: center;
         }
-        .bank-center h3 {
-          margin: 0;
-          font-size: 20px;
+        .cheque-header-left {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .business-name {
+          font-size: 16px;
           font-weight: 700;
-          color: #0f172a;
-          font-family: "Helvetica Neue", Arial, sans-serif;
+          color: #000;
+          line-height: 1.4;
         }
-        .meta {
-          text-align: right;
-          font-size: 13px;
-          color: #475569;
-          font-family: "Helvetica Neue", Arial, sans-serif;
+        .business-dba {
+          font-size: 14px;
+          font-weight: 600;
+          color: #333;
+          line-height: 1.4;
         }
-        .payee-label {
+        .business-address {
           font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.3em;
-          color: #94a3b8;
+          color: #333;
+          line-height: 1.4;
+        }
+        .cheque-header-right {
+          text-align: right;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .cheque-date {
+          font-size: 14px;
+          font-weight: 500;
+          color: #000;
+        }
+        .cheque-number {
+          font-size: 16px;
           font-weight: 700;
-          font-family: "Helvetica Neue", Arial, sans-serif;
+          color: #000;
+        }
+        .cheque-payee-section {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin: 30px 0;
+          gap: 40px;
+        }
+        .payee-container {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .pay-to-label {
+          font-size: 11px;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          color: #000;
+          font-weight: 600;
+          margin-bottom: 4px;
         }
         .payee-name {
-          font-size: 26px;
+          font-size: 18px;
           font-weight: 600;
-          color: #0f172a;
-          margin: 6px 0;
+          color: #000;
+          min-height: 24px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 4px;
+          margin-bottom: 4px;
         }
-        .payee-rule {
-          height: 1px;
-          background: #d9dbe3;
+        .amount-container {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
         }
-        .amount-box {
-          border: 1px solid #cbd5f5;
-          border-radius: 8px;
-          padding: 12px 18px;
-          font-size: 24px;
+        .amount-value {
+          font-size: 18px;
           font-weight: 700;
-          min-width: 160px;
+          color: #000;
+          min-width: 140px;
           text-align: right;
-          color: #0f172a;
-          font-family: "Helvetica Neue", Arial, sans-serif;
+          border-bottom: 2px solid #000;
+          padding-bottom: 4px;
         }
-        .amount-words {
-          font-size: 16px;
+        .amount-words-section {
+          margin: 20px 0;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .amount-words-text {
+          font-size: 14px;
           font-weight: 500;
-          color: #1f2937;
-          border-bottom: 1px solid #d9dbe3;
-          padding-bottom: 12px;
-          font-family: "Helvetica Neue", Arial, sans-serif;
+          color: #000;
+          flex: 1;
         }
-        .footer {
+        .amount-words-line {
+          flex: 1;
+          height: 1px;
+          background: #000;
+          margin-left: 8px;
+        }
+        .cheque-footer {
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
+          margin-top: 40px;
+          gap: 40px;
         }
-        .memo {
-          font-size: 13px;
-          color: #475569;
-          font-family: "Helvetica Neue", Arial, sans-serif;
+        .memo-section {
+          flex: 1;
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
         }
-        .memo span {
-          display: inline-block;
-          min-width: 200px;
-          border-bottom: 1px solid #d9dbe3;
-          margin-left: 8px;
+        .memo-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #000;
+          white-space: nowrap;
         }
-        .signature {
+        .memo-value {
+          font-size: 12px;
+          color: #000;
+          flex: 1;
+          border-bottom: 1px solid #000;
+          min-height: 16px;
+          padding-bottom: 2px;
+        }
+        .signature-section {
           display: flex;
           flex-direction: column;
           align-items: flex-end;
-          gap: 6px;
+          gap: 4px;
+          min-width: 200px;
         }
-        .signature img {
-          max-height: 60px;
+        .signature-section img {
+          max-height: 50px;
+          max-width: 180px;
           object-fit: contain;
+          margin-bottom: 4px;
         }
         .signature-line {
-          width: 240px;
-          border-bottom: 1px solid #94a3b8;
+          width: 200px;
+          height: 1px;
+          background: #000;
+          margin-top: 4px;
         }
         .signature-label {
-          font-size: 11px;
-          letter-spacing: 0.3em;
-          color: #94a3b8;
+          font-size: 10px;
+          letter-spacing: 0.1em;
           text-transform: uppercase;
-          font-family: "Helvetica Neue", Arial, sans-serif;
+          color: #000;
+          font-weight: 500;
+          margin-top: 2px;
         }
-        .meta-bar {
+        .micr-section {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #ccc;
+        }
+        .micr-line {
+          font-family: "MICR", "Courier New", monospace !important;
+          font-size: 16px;
+          letter-spacing: 0.1em;
+          color: #000;
+          text-align: center;
+          line-height: 1.8;
+          font-weight: normal;
+          white-space: pre;
+          font-variant-numeric: tabular-nums;
+        }
+        .cheque-stub {
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 2px dashed #999;
+        }
+        .stub-perforation {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 16px;
+          padding: 8px 0;
+        }
+        .perforation-line {
+          flex: 1;
+          height: 1px;
+          border-top: 1px dashed #999;
+        }
+        .perforation-label {
+          font-size: 9px;
+          color: #666;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          white-space: nowrap;
+        }
+        .stub-content {
+          padding: 12px;
+          background: #f9f9f9;
+          border: 1px solid #ddd;
+        }
+        .stub-header {
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: #000;
+          margin-bottom: 12px;
+          padding-bottom: 6px;
+          border-bottom: 1px solid #ccc;
+        }
+        .stub-details {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .stub-row {
           display: flex;
           justify-content: space-between;
-          font-size: 12px;
-          color: #64748b;
+          align-items: baseline;
+          font-size: 11px;
+          line-height: 1.4;
         }
-        .micr-text {
-          font-family: "MICR", "Courier New", monospace;
-          letter-spacing: 0.18em;
+        .stub-label {
+          font-weight: 600;
+          color: #333;
+          min-width: 100px;
         }
-        .micr {
-          font-family: "MICR", "Courier New", monospace;
-          font-size: 18px;
-          letter-spacing: 0.2em;
-          color: #111827;
-          text-align: center;
-          border-top: 1px solid #e2e8f0;
-          padding-top: 16px;
+        .stub-value {
+          color: #000;
+          text-align: right;
+          flex: 1;
+          margin-left: 12px;
         }
       </style>
     </head>
     <body>
       <div class="cheque-wrapper">
         <div class="cheque">
-          <div class="status">ISSUED</div>
-          <div class="row">
-            <div class="bank-block">
-              ${corporationBlock}
-              ${addressBlock}
+          <!-- Header: Business Info (Left), Bank Name (Center), Date/Check Number (Right) -->
+          <div class="cheque-header">
+            <div class="cheque-header-left">
+              ${businessName ? `<div class="business-name">${businessName}</div>` : ''}
+              ${businessDba ? `<div class="business-dba">${businessDba}</div>` : ''}
+              ${businessAddress1 ? `<div class="business-address">${businessAddress1}</div>` : ''}
+              ${businessAddress2 ? `<div class="business-address">${businessAddress2}</div>` : ''}
             </div>
-            <div class="bank-center">
-              <h3>${cheque.bank.name}</h3>
+            <div class="cheque-header-center">
+              <div class="bank-name-header">${cheque.bank.name}</div>
             </div>
-            <div class="meta">
-              <div>Cheque #${cheque.number || "N/A"}</div>
-              <div>${new Date(cheque.createdAt).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}</div>
+            <div class="cheque-header-right">
+              <div class="cheque-date">Date: ${formattedDate}</div>
+              <div class="cheque-number">No. ${checkNumber}</div>
             </div>
           </div>
 
-          <div class="row">
-            <div class="payee-line">
-              <label class="payee-label">Pay to the Order of</label>
-              <div class="payee-name">${cheque.payee.name}</div>
-              <div class="payee-rule"></div>
+          <!-- Payee Section: "PAY TO THE ORDER OF" + Payee (Left), Amount (Right) -->
+          <div class="cheque-payee-section">
+            <div class="payee-container">
+              <div class="pay-to-label">PAY TO THE ORDER OF</div>
+              <div class="payee-name">${cheque.payee.name || 'N/A'}</div>
             </div>
-            <div class="amount-box">${amount}</div>
+            <div class="amount-container">
+              <div class="amount-value">${amount}</div>
+            </div>
           </div>
 
-          <div class="amount-words">${cheque.amountWords}</div>
+          <!-- Amount in Words -->
+          <div class="amount-words-section">
+            <div class="amount-words-text">${cheque.amountWords}</div>
+            <div class="amount-words-line"></div>
+          </div>
 
-          <div class="footer">
-            <div class="memo">
-              Memo:<span>${cheque.memo || "&nbsp;"}</span>
+          <!-- Footer: Memo (Left) and Signature (Right) -->
+          <div class="cheque-footer">
+            <div class="memo-section">
+              <div class="memo-label">Memo:</div>
+              <div class="memo-value">${cheque.memo || "&nbsp;"}</div>
             </div>
-            <div class="signature">
+            <div class="signature-section">
               ${signature}
               <div class="signature-line"></div>
-              <label class="signature-label">Signature</label>
+              <div class="signature-label">AUTHORIZED SIGNATURE</div>
             </div>
           </div>
 
-          <div class="meta-bar">
-            <span>Issued by: ${cheque.issuedBy}</span>
-            <span>Payee Type: ${cheque.payee.type}</span>
+          <!-- MICR Line Footer -->
+          <div class="micr-section">
+            <div class="micr-line">${micr}</div>
           </div>
 
-          <div class="micr">${micr}</div>
+          <!-- Detachable Stub -->
+          <div class="cheque-stub">
+            <div class="stub-perforation">
+              <div class="perforation-line"></div>
+              <div class="perforation-label">DETACH HERE</div>
+              <div class="perforation-line"></div>
+            </div>
+            <div class="stub-content">
+              <div class="stub-header">PAYMENT SUMMARY</div>
+              <div class="stub-details">
+                <div class="stub-row">
+                  <span class="stub-label">Payee:</span>
+                  <span class="stub-value">${cheque.payee.name || 'N/A'}</span>
+                </div>
+                <div class="stub-row">
+                  <span class="stub-label">Amount:</span>
+                  <span class="stub-value">${amount}</span>
+                </div>
+                <div class="stub-row">
+                  <span class="stub-label">Date:</span>
+                  <span class="stub-value">${formattedDate}</span>
+                </div>
+                ${cheque.memo ? `
+                <div class="stub-row">
+                  <span class="stub-label">Memo:</span>
+                  <span class="stub-value">${cheque.memo}</span>
+                </div>
+                ` : ''}
+                <div class="stub-row">
+                  <span class="stub-label">Bank:</span>
+                  <span class="stub-value">${cheque.bank.name}</span>
+                </div>
+                <div class="stub-row">
+                  <span class="stub-label">Account Number:</span>
+                  <span class="stub-value">${cheque.bank.accountNumber}</span>
+                </div>
+                <div class="stub-row">
+                  <span class="stub-label">Check Number:</span>
+                  <span class="stub-value">${checkNumber}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </body>
@@ -332,7 +531,8 @@ export async function generateChequePDF(cheque: ChequeViewModel): Promise<Buffer
     });
 
     const pdf = await page.pdf({
-      format: "Letter",
+      width: "8.5in",
+      height: "11in",
       printBackground: true,
       margin: {
         top: "0.5in",
@@ -346,4 +546,5 @@ export async function generateChequePDF(cheque: ChequeViewModel): Promise<Buffer
     await browser.close();
   }
 }
+
 

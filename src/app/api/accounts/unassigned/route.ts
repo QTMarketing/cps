@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireRole, Role } from '@/lib/rbac';
+import { requireMinimumRole, Role } from '@/lib/rbac';
 
 export async function GET(req: NextRequest) {
-  const roleCheck = requireRole(Role.ADMIN);
+  const roleCheck = requireMinimumRole(Role.ADMIN);
   const response = await roleCheck(req);
   if (response) return response;
 

@@ -31,7 +31,9 @@ export async function uploadInvoice(file: File, { checkNumber }: { checkNumber: 
 
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.url) {
-    throw new Error(data?.error || `Upload failed (HTTP ${res.status})`);
+    const errorMsg = data?.error || data?.details || `Upload failed (HTTP ${res.status})`;
+    console.error('Upload error details:', { status: res.status, data });
+    throw new Error(errorMsg);
   }
 
   return data.url as string;

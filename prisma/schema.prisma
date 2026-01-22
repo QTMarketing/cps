@@ -84,6 +84,7 @@ model Signer {
 model User {
   id                                  Int       @id @default(autoincrement())
   username                            String    @unique
+  email                               String?   @unique
   password_hash                       String
   assigned_bank_id                    Int?
   created_at                          DateTime  @default(now())
@@ -104,7 +105,7 @@ model Vendor {
   phone          String?
   address        String?
   created_at     DateTime     @default(now())
-  updated_at     DateTime
+  updated_at     DateTime     @updatedAt
   VendorBank     VendorBank[]
   Check          Check[]
 }

@@ -90,21 +90,32 @@ export async function listChecks(params: ListChecksParams): Promise<{ rows: Chec
     
     console.log('listChecks: fetched', checks.length, 'checks, total:', total);
 
-    const rows: CheckRecord[] = checks.map((row: any) => ({
-      id: row.id,
-      createdAt: row.createdAt || row.created_at,
-      checkNumber: String(row.checkNumber || row.check_number || row.referenceNumber || ''),
-      vendorId: row.vendorId || row.vendor?.id || '',
-      vendorName: row.vendor?.vendorName || row.vendor?.vendor_name || 'Unknown Vendor',
-      storeId: row.vendor?.store?.id || row.storeId || '',
-      storeName: row.vendor?.store?.name || row.store?.name || 'Unknown Store',
-      amount: Number(row.amount || 0),
-      memo: row.memo || undefined,
-      userId: row.issuedByUser?.id || row.issuedBy || '',
-      userName: row.issuedByUser?.username || 'Unknown',
-      invoiceUrl: row.invoiceUrl || row.invoice_url || undefined,
-      status: mapDbStatusToUi(row.status || 'ISSUED'),
-    } as CheckRecord));
+    const rows: CheckRecord[] = checks.map((row: any) => {
+      const storeName = row.vendor?.store?.name || row.store?.name || row.storeName || '';
+      const getStoreNumber = (name: string) => {
+        const match = name.match(/\d+/);
+        return match ? match[0] : "";
+      };
+      const storeNum = getStoreNumber(storeName);
+      const rawCheckNumber = String(row.checkNumber || row.check_number || row.referenceNumber || '');
+      const displayCheckNumber = storeNum ? `${storeNum} ${rawCheckNumber}` : rawCheckNumber;
+
+      return {
+        id: row.id,
+        createdAt: row.createdAt || row.created_at,
+        checkNumber: displayCheckNumber,
+        vendorId: row.vendorId || row.vendor?.id || '',
+        vendorName: row.vendor?.vendorName || row.vendor?.vendor_name || 'Unknown Vendor',
+        storeId: row.vendor?.store?.id || row.storeId || '',
+        storeName: storeName || 'Unknown Store',
+        amount: Number(row.amount || 0),
+        memo: row.memo || undefined,
+        userId: row.issuedByUser?.id || row.issuedBy || '',
+        userName: row.issuedByUser?.username || 'Unknown',
+        invoiceUrl: row.invoiceUrl || row.invoice_url || undefined,
+        status: mapDbStatusToUi(row.status || 'ISSUED'),
+      } as CheckRecord;
+    });
 
     return { rows, total };
   } catch (error) {

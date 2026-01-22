@@ -18,7 +18,7 @@ import { formatCurrency, formatAmountWords } from './renderData';
 // =============================================================================
 
 const CHEQUE_WIDTH = 612; // 8.5 inches * 72 points per inch
-const CHEQUE_HEIGHT = 252; // 3.5 inches * 72 points per inch
+const CHEQUE_HEIGHT = 792; // 11 inches * 72 points per inch
 const MARGIN = 24; // 1/3 inch margin
 const TRANSIT_SYMBOL = String.fromCharCode(0x2446); // ⑆ (transit symbol)
 const ON_US_SYMBOL = String.fromCharCode(0x2448); // ⑈ (on-us symbol)
@@ -210,7 +210,15 @@ const drawText = (
 
   // Top-right: Cheque number and date
   const chequeNumberX = width - MARGIN - 120;
-  drawText(`Cheque No. ${data.chequeNumber}`, chequeNumberX, startY, {
+  const getStoreNumber = (name?: string | null) => {
+    if (!name) return "";
+    const match = name.match(/\d+/);
+    return match ? match[0] : "";
+  };
+  const storeNum = getStoreNumber(data.storeName);
+  const displayChequeNumber = storeNum ? `${storeNum} ${data.chequeNumber}` : data.chequeNumber;
+  
+  drawText(`Cheque No. ${displayChequeNumber}`, chequeNumberX, startY, {
     font: helveticaBold,
     size: 11,
   });
@@ -322,13 +330,38 @@ const drawText = (
 
   const micrLineY = 30;
   
-  // Format MICR line: ⑆routing⑆ account ⑈cheque⑈
-  const micrText = `${TRANSIT_SYMBOL}${data.routingNumber}${TRANSIT_SYMBOL} ${data.accountNumber} ${ON_US_SYMBOL}${data.chequeNumber}${ON_US_SYMBOL}`;
+  // Format MICR line: ⑆ check_number ⑈ routing_number ⑈ account_number ⑈
+  const checkNumberNormalized = data.chequeNumber.toString().padStart(9, '0');
+  const routingNormalized = data.routingNumber.toString().padStart(9, '0');
+  const accountNormalized = data.accountNumber.toString().padStart(9, '0');
+  const micrText = `${TRANSIT_SYMBOL} ${checkNumberNormalized} ${ON_US_SYMBOL} ${routingNormalized} ${ON_US_SYMBOL} ${accountNormalized} ${ON_US_SYMBOL}`;
   
   // Draw MICR line using MICR font (or Helvetica fallback)
-  drawText(micrText, MARGIN, micrLineY, {
+  drawText(micrText, width / 2 - 150, micrLineY, {
     font: micrFont,
     size: 14,
+  });
+
+  // ===========================================================================
+  // BANK/ACCOUNT INFO LINE (25px below MICR line)
+  // ===========================================================================
+
+  const bankInfoY = micrLineY - 25 - 12; // 25px padding + line height
+  const dbaOrAccountName = data.dba || data.accountName || '';
+  const bankInfoLeft = `${dbaOrAccountName} ${data.chequeNumber}`;
+  const bankInfoRight = `Bank: ${data.bankName} Account#: ${data.accountNumber}`;
+
+  drawText(bankInfoLeft, MARGIN, bankInfoY, {
+    font: helvetica,
+    size: 10,
+  });
+
+  // Calculate right-aligned text position
+  const bankInfoRightWidth = helvetica.widthOfTextAtSize(bankInfoRight, 10);
+  const bankInfoRightX = width - MARGIN - bankInfoRightWidth;
+  drawText(bankInfoRight, bankInfoRightX, bankInfoY, {
+    font: helvetica,
+    size: 10,
   });
 
   // ===========================================================================

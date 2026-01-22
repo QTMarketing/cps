@@ -8,6 +8,7 @@ export interface ChequeViewModel {
   memo: string;
   createdAt: string;
   issuedBy: string;
+  storeName?: string | null;
   bank: {
     name: string;
     accountName?: string | null;

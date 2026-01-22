@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       bearerToken,
       process.env.JWT_SECRET || 'your-secret-key-change-in-production'
     );
-    const isAdmin = decoded?.role === 'ADMIN';
+    const isAdmin = decoded?.role === 'ADMIN' || decoded?.role === 'SUPER_ADMIN';
 
     // Parse query params
     const { searchParams } = new URL(request.url);
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     let where: Prisma.CheckWhereInput = {};
 
     // For non-admin users, only show checks for banks assigned to them
+    // SUPER_ADMIN and ADMIN can see all checks
     const requiresUserFilter = !isAdmin && decoded?.userId;
 
     // Build search terms for check-level fields
@@ -118,14 +119,7 @@ export async function GET(request: NextRequest) {
         skip: page * limit,
         take: limit,
         orderBy: { created_at: 'desc' },
-        select: {
-          id: true,
-          created_at: true,
-          check_number: true,
-          amount: true,
-          memo: true,
-          payee_name: true,
-          invoice_url: true,
+        include: {
           Vendor: {
             select: {
               id: true,
@@ -133,7 +127,6 @@ export async function GET(request: NextRequest) {
               vendor_type: true,
             },
           },
-          issued_by_username: true,
           Bank: {
             select: {
               id: true,
@@ -165,51 +158,75 @@ export async function GET(request: NextRequest) {
       prisma.check.count({ where })
     ]);
 
-    const payload = checks.map((check) => ({
-      id: check.id.toString(),
-      createdAt: check.created_at,
-      created_at: check.created_at, // Include both formats for compatibility
-      checkNumber: Number(check.check_number),
-      check_number: Number(check.check_number), // Include both formats for compatibility
-      bank: {
-        id: check.Bank.id.toString(),
-        bankName: check.Bank.bank_name,
-        dba: check.Bank.dba,
-        accountType: check.Bank.account_type,
-        routingNumber: check.Bank.routing_number?.toString() || null,
-        accountNumber: check.Bank.account_number?.toString() || null,
-        signatureUrl:
-          check.Bank.signature_url ||
-          check.Bank.BankSigner?.[0]?.Signer?.Signature?.[0]?.url ||
-          null,
+    // Fetch store names for each check based on issued_by_username
+    const usernames = Array.from(new Set(checks.map(c => c.issued_by_username).filter(Boolean))) as string[];
+    const usersWithStores = await prisma.user.findMany({
+      where: { username: { in: usernames } },
+      select: {
+        username: true,
+        managedStores: {
+          select: { name: true },
+          take: 1,
+        },
       },
-      dba: check.Bank.dba ?? null, // DBA at top level for easy access
-      amount: check.amount ? Number(check.amount) : 0,
-      memo: check.memo ?? null,
-      payeeName: check.Vendor?.vendor_name ?? check.payee_name ?? null,
-      payee_name: check.Vendor?.vendor_name ?? check.payee_name ?? null, // Include both formats for compatibility
-      status: 'ISSUED', // Default status since Check model doesn't have status field
-      paymentMethod: 'CHECK', // Default payment method
-      payment_method: 'CHECK', // Include both formats for compatibility
-      invoiceUrl: check.invoice_url ?? null,
-      invoice_url: check.invoice_url ?? null,
-      vendor: check.Vendor
-        ? {
-            id: check.Vendor.id.toString(),
-            vendorName: check.Vendor.vendor_name,
-            vendorType: check.Vendor.vendor_type,
-          }
-        : check.payee_name
-        ? {
-            vendorName: check.payee_name,
-          }
-        : null,
-      store: null,
-      issuedByUser: {
-        username: check.issued_by_username ?? 'Unknown',
-      },
-      userName: check.issued_by_username ?? 'Unknown',
-    }));
+    });
+
+    const storeMap = new Map<string, string>();
+    usersWithStores.forEach(u => {
+      if (u.managedStores?.[0]) {
+        storeMap.set(u.username, u.managedStores[0].name);
+      }
+    });
+
+    const payload = checks.map((check) => {
+      const storeName = check.issued_by_username ? storeMap.get(check.issued_by_username) : null;
+      return {
+        id: check.id.toString(),
+        createdAt: check.created_at,
+        created_at: check.created_at,
+        checkNumber: Number(check.check_number),
+        check_number: Number(check.check_number),
+        storeName,
+        bank: {
+          id: check.Bank.id.toString(),
+          bankName: check.Bank.bank_name,
+          dba: check.Bank.dba,
+          accountType: check.Bank.account_type,
+          routingNumber: check.Bank.routing_number?.toString() || null,
+          accountNumber: check.Bank.account_number?.toString() || null,
+          signatureUrl:
+            check.Bank.signature_url ||
+            check.Bank.BankSigner?.[0]?.Signer?.Signature?.[0]?.url ||
+            null,
+        },
+        dba: check.Bank.dba ?? null,
+        amount: check.amount ? Number(check.amount) : 0,
+        memo: check.memo ?? null,
+        payeeName: check.Vendor?.vendor_name ?? check.payee_name ?? null,
+        payee_name: check.Vendor?.vendor_name ?? check.payee_name ?? null,
+        status: 'ISSUED',
+        paymentMethod: 'CHECK',
+        payment_method: 'CHECK',
+        invoiceUrl: check.invoice_url ?? null,
+        invoice_url: check.invoice_url ?? null,
+        vendor: check.Vendor
+          ? {
+              id: check.Vendor.id.toString(),
+              vendorName: check.Vendor.vendor_name,
+              vendorType: check.Vendor.vendor_type,
+            }
+          : check.payee_name
+          ? {
+              vendorName: check.payee_name,
+            }
+          : null,
+        store: storeName ? { name: storeName } : null,
+        issuedByUser: {
+          username: check.issued_by_username ?? 'Unknown',
+        },
+        userName: check.issued_by_username ?? 'Unknown',
+      };
+    });
 
     return NextResponse.json({ checks: payload, total });
   } catch (error) {
@@ -288,6 +305,49 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Get bank to extract store number from DBA
+    const bank = await prisma.bank.findUnique({
+      where: { id: Number(bankId) },
+      select: { dba: true },
+    });
+
+    // Extract store number from DBA (e.g., "QT 118" -> "118")
+    let storeNumber = '';
+    if (bank?.dba) {
+      const match = bank.dba.match(/\d+/);
+      if (match) {
+        storeNumber = match[0];
+      }
+    }
+
+    // Get the last check number for this bank to calculate next sequential number
+    let nextSequential = 1;
+    if (storeNumber) {
+      const lastCheck = await prisma.check.findFirst({
+        where: { bank_id: Number(bankId) },
+        orderBy: { check_number: 'desc' },
+        select: { check_number: true },
+      });
+
+      if (lastCheck) {
+        const lastCheckNum = Number(lastCheck.check_number);
+        // Extract the sequential part from the last check number
+        // If last check was formatted as storeNumber + sequential, extract sequential
+        const lastCheckStr = lastCheckNum.toString();
+        if (lastCheckStr.startsWith(storeNumber)) {
+          const sequentialPart = lastCheckStr.substring(storeNumber.length);
+          nextSequential = parseInt(sequentialPart, 10) + 1;
+        } else {
+          // If not formatted, use the auto-increment value as sequential
+          nextSequential = lastCheckNum + 1;
+        }
+      } else {
+        // First check for this bank - start at 1
+        nextSequential = 1;
+      }
+    }
+
+    // Create check first (with auto-increment check_number)
     const created = await prisma.check.create({
       data: {
         bank_id: Number(bankId),
@@ -308,6 +368,17 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Calculate and update check number with store number prefix
+    if (storeNumber) {
+      const formattedCheckNumber = BigInt(`${storeNumber}${String(nextSequential).padStart(5, '0')}`);
+      await prisma.check.update({
+        where: { id: created.id },
+        data: { check_number: formattedCheckNumber },
+      });
+      // Update the created object with the new check number
+      created.check_number = formattedCheckNumber;
+    }
 
     return NextResponse.json(
       {

@@ -121,11 +121,13 @@ export default function ReportsContent() {
       
       if (response.ok) {
         const data = await response.json();
-        // Ensure data is an array
+        // API returns { checks: [...], total } format
         if (Array.isArray(data)) {
           setChecks(data);
+        } else if (data?.checks && Array.isArray(data.checks)) {
+          setChecks(data.checks);
         } else {
-          console.error("Expected array but got:", data);
+          console.error("Unexpected response format:", data);
           setChecks([]);
         }
       } else if (response.status === 401) {

@@ -45,15 +45,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Try Supabase storage if available
     if (hasSupabaseStorage()) {
       try {
-        const { publicUrl } = await uploadBufferToSupabase(key, buffer, file.type);
+        // Use 'invoices' bucket if available, otherwise use default bucket
+        const invoiceBucket = process.env.SUPABASE_INVOICES_BUCKET || process.env.SUPABASE_STORAGE_BUCKET || process.env.SUPABASE_BUCKET || 'sign';
+        const { publicUrl } = await uploadBufferToSupabase(key, buffer, file.type, invoiceBucket);
         return NextResponse.json({ url: publicUrl });
       } catch (err: any) {
-        return NextResponse.json(
-          { error: 'Supabase upload failed', details: err?.message || String(err) },
-          { status: 500 },
-        );
+        console.error('Supabase upload failed, falling back to local storage:', err?.message || err);
+        // Fall through to local storage fallback instead of failing
       }
     }
 

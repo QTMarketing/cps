@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
           email: data.email,
           phone: data.phone,
           address: data.address,
+          updated_at: new Date(), // Set initial updated_at
         },
       });
 

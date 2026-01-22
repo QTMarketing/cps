@@ -26,7 +26,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: username.includes("@") ? undefined : username, email: username.includes("@") ? username : undefined, password }),
       });
 
       if (response.ok) {
@@ -35,12 +35,61 @@ export default function LoginPage() {
         document.cookie = cookieValue;
         router.push("/write-checks");
       } else {
-        const errorData = await response.json().catch(() => ({ error: "Login failed" }));
-        setError(errorData.error || errorData.message || "Login failed");
-        console.error("Login error details:", errorData);
+        // Try to get error message from response
+        let errorMessage = `Login failed (${response.status})`;
+        
+        try {
+          // Read response as text first (safer than JSON.parse on potentially consumed body)
+          const text = await response.text();
+          console.log("Login error - raw response text:", text);
+          console.log("Login error - response status:", response.status);
+          
+          if (text && text.trim()) {
+            try {
+              const errorData = JSON.parse(text);
+              // Check if we actually got valid data
+              if (errorData && typeof errorData === 'object' && Object.keys(errorData).length > 0) {
+                errorMessage = errorData.error || errorData.message || errorMessage;
+                console.error("Login error - parsed JSON:", errorData);
+              } else {
+                // Empty object - use status-based defaults
+                if (response.status === 401) {
+                  errorMessage = "Invalid username or password";
+                } else if (response.status === 400) {
+                  errorMessage = "Invalid request. Please check your input.";
+                }
+                console.error("Login error - parsed empty object, using status-based message");
+              }
+            } catch (parseError) {
+              // Response is text but not JSON - use the text as error message
+              errorMessage = text.trim() || errorMessage;
+              console.error("Login error - not valid JSON, using text:", text);
+            }
+          } else {
+            // Empty or whitespace-only response body - use status-based defaults
+            if (response.status === 401) {
+              errorMessage = "Invalid username or password";
+            } else if (response.status === 400) {
+              errorMessage = "Invalid request. Please check your input.";
+            }
+            console.error("Login error - empty response body, using status-based message");
+          }
+        } catch (readError) {
+          // If we can't read the response at all, use status-based defaults
+          if (response.status === 401) {
+            errorMessage = "Invalid username or password";
+          } else if (response.status === 400) {
+            errorMessage = "Invalid request. Please check your input.";
+          }
+          console.error("Login error - could not read response:", readError);
+        }
+        
+        setError(errorMessage);
       }
-    } catch {
-      setError("An error occurred. Please try again.");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";
+      console.error("Login request failed:", err);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -70,14 +119,14 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <label htmlFor="username" className="text-sm font-medium">
-                Username
+                Username or Email
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder="Enter your username or email"
                   className="pl-9"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}

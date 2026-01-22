@@ -12,9 +12,9 @@ export function formatAmountInWords(amount: number): string {
   const cents = parseInt(centsPart, 10);
 
   if (cents === 0) {
-    return `${capitalized} dollars`;
+    return `${capitalized} DOLLARS`;
   }
 
-  return `${capitalized} dollars and ${centsPart}/100`;
+  return `${capitalized} AND ${centsPart}/100 DOLLARS`;
 }
 

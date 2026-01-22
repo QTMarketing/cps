@@ -381,7 +381,8 @@ export function requireRole(role: Role) {
       }
 
       // Check if user has the required role
-      if (!userHasRole(user, role)) {
+      // SUPER_ADMIN can access any role endpoint
+      if (user.role !== Role.SUPER_ADMIN && !userHasRole(user, role)) {
         return NextResponse.json(
           { 
             error: 'Forbidden', 

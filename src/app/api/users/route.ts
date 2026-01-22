@@ -33,6 +33,7 @@ const updateUserSchema = z.object({
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(50),
+  email: z.string().email().optional(),
   password: z.string().min(8),
   assignedBankId: z.number().int().optional(),
   role: RoleEnum.default('USER'),
@@ -132,6 +133,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check if email already exists (if provided)
+    if (validatedData.email) {
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email: validatedData.email },
+      });
+
+      if (existingUserByEmail) {
+        return NextResponse.json(
+          { error: 'Email already exists' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 12);
 
@@ -139,6 +154,7 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.create({
       data: {
         username: validatedData.username,
+        email: validatedData.email || null,
         password_hash: hashedPassword,
         assigned_bank_id: validatedData.assignedBankId || null,
         role: requestedRole as Role,
@@ -146,6 +162,7 @@ export async function POST(req: NextRequest) {
       select: {
         id: true,
         username: true,
+        email: true,
         role: true,
         assigned_bank_id: true,
         created_at: true,

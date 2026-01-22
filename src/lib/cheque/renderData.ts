@@ -30,6 +30,7 @@ export interface ChequeData {
 
   // Check Information
   chequeNumber: string;
+  storeName?: string | null;
   date: string;
   payeeName: string;
   amount: number;
@@ -57,6 +58,7 @@ export const chequeDataSchema = z.object({
   accountNumber: z.string().regex(/^\d+$/, 'Account number must contain only digits'),
   merchantNumber: z.string().nullable().optional(),
   chequeNumber: z.string().min(1, 'Cheque number is required'),
+  storeName: z.string().nullable().optional(),
   date: z.string().min(1, 'Date is required'),
   payeeName: z.string().min(1, 'Payee name is required'),
   amount: z.union([z.number(), z.string()]).transform((val) => {

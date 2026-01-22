@@ -21,7 +21,28 @@ export async function GET(
       return NextResponse.json({ error: 'Check not found' }, { status: 404 });
     }
 
-    const payload = mapChequeRecord(check as any);
+    // Attempt to find the store name associated with the user who issued the check
+    let storeName: string | null = null;
+    if (check.issued_by_username) {
+      try {
+        const userWithStore = await prisma.user.findUnique({
+          where: { username: check.issued_by_username },
+          select: {
+            managedStores: {
+              select: { name: true },
+              take: 1,
+            },
+          },
+        });
+        if (userWithStore?.managedStores?.[0]) {
+          storeName = userWithStore.managedStores[0].name;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch store for check issued by:", check.issued_by_username, e);
+      }
+    }
+
+    const payload = mapChequeRecord({ ...check, store_name: storeName } as any);
 
     return NextResponse.json(payload);
   } catch (error) {

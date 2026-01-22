@@ -1,0 +1,501 @@
+1 — Summary / Goals
+
+Implement a robust role-based access control (RBAC) system with USER, ADMIN, SUPER_ADMIN.
+
+Provide UI components: a Sidebar that hides menu items by role and a Role Switcher in admin panel.
+
+Provide server-side route protection (middleware and API guard helpers).
+
+Ensure role changes take effect immediately (avoid stale role in JWT).
+
+Provide Prisma database schema and instructions to migrate.
+
+Provide tests and QA steps.
+
+2 — PRD (Product Requirements Document — for Engineers / Cursor)
+Title
+
+RBAC System: Roles, Sidebar, API Guards, Role Switcher UI
+
+Purpose
+
+Control access to pages and APIs via roles. Roles: USER, ADMIN, SUPER_ADMIN. Enforce server-side and client-side protection. Provide UI for admins to change roles and a Sidebar that shows/hides links.
+
+Scope
+
+Models: User with role enum.
+
+Pages: write-checks, add-vendors, add-bank, add-user, users, check-print, admin pages.
+
+Components: Sidebar, RoleSwitcher, ProtectedRoute utilities.
+
+Middleware: Next.js middleware to block unauthorized routes.
+
+APIs: Guarded endpoints and role-update endpoint.
+
+Auth: JWT-based or session-based system must include role in auth token / session and must be refreshed on change.
+
+Roles & Permissions
+
+USER: access /write-checks only.
+
+ADMIN: access write-checks, add-vendors, add-bank, add-user, users, check-print.
+
+SUPER_ADMIN: access all pages and system-wide editing.
+
+Acceptance Criteria
+
+Sidebar hides menu items not allowed for current role.
+
+Middleware blocks direct URL requests for unauthorized roles with 403 or redirect to /unauthorized.
+
+Role switcher UI allows ADMIN or SUPER_ADMIN (designate only SUPER_ADMIN if desired) to change role for a user; after update the user must re-authenticate or the system should issue a new token / session.
+
+API endpoints check role server-side on each request.
+
+Role changes persist in DB and reflected after login or token refresh.
+
+3 — Exact Files & Code Snippets
+
+These are implementation-ready snippets. Tweak imports/path to match your project.
+
+3.1 Prisma schema (prisma/schema.prisma)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or mysql
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String?  @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+Notes: run npx prisma migrate dev --name add-user-role after saving schema.
+
+3.2 Middleware (Next.js App Router) — server-side route protection
+
+Create middleware.ts at project root:
+
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { verifyJwt } from "./lib/auth"; // see auth helper below
+
+// map roles to allowed routes (exact or prefix)
+const ROLE_ALLOWLIST: Record<string, string[]> = {
+  USER: ["/write-checks"],
+  ADMIN: [
+    "/write-checks",
+    "/add-vendors",
+    "/add-bank",
+    "/add-user",
+    "/users",
+    "/check-print",
+    "/vendors",
+  ],
+  SUPER_ADMIN: ["*"], // all
+};
+
+function isAllowed(role: string, pathname: string) {
+  if (role === "SUPER_ADMIN") return true;
+  const allowed = ROLE_ALLOWLIST[role] ?? [];
+  // allow exact matches and prefix matches
+  return allowed.some((p) => p === pathname || pathname.startsWith(p));
+}
+
+export async function middleware(req: NextRequest) {
+  const token = req.cookies.get("token")?.value;
+
+  // allow public assets and auth routes
+  const publicPaths = ["/api/auth", "/api/public", "/_next", "/public", "/login"];
+  if (publicPaths.some((p) => req.nextUrl.pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  if (!token) {
+    // Not authenticated — redirect to login
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  try {
+    const payload = verifyJwt(token); // throws if invalid
+    const role = payload.role ?? "USER";
+    const pathname = req.nextUrl.pathname;
+
+    if (!isAllowed(role, pathname)) {
+      // unauthorized
+      // if AJAX/API -> return 403 JSON
+      if (pathname.startsWith("/api/")) {
+        return new NextResponse(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      // for pages redirect to unauthorized page
+      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    }
+
+    // Allowed
+    return NextResponse.next();
+  } catch (err) {
+    // invalid token: redirect to login
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+}
+
+export const config = {
+  matcher: [
+    /*
+      match all app routes you want protected.
+      keep login/health/api/public routes unrestricted
+    */
+    "/(write-checks|add-vendors|add-bank|add-user|users|check-print|vendors|admin|settings)(/:path*)?",
+    "/api/(?!public).*"
+  ],
+};
+
+
+Important: verifyJwt should validate token and return payload with role. See auth helper below.
+
+3.3 Auth Helper (/lib/auth.ts)
+
+Example JWT helper used by middleware and API guards. Replace with your actual auth logic (NextAuth, Clerk, etc.) if needed.
+
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
+
+export function signJwt(payload: object, opts = { expiresIn: "7d" }) {
+  return jwt.sign(payload, JWT_SECRET, opts);
+}
+
+export function verifyJwt(token: string) {
+  try {
+    return jwt.verify(token, JWT_SECRET) as any;
+  } catch (err) {
+    throw new Error("Invalid token");
+  }
+}
+
+
+Token payload should include: { userId, username, role }.
+
+When user logs in, issue token cookie (HttpOnly, Secure) containing signed JWT.
+
+3.4 API Guard helper (for API routes)
+
+Create /lib/guards.ts:
+
+import { NextRequest } from "next/server";
+import { verifyJwt } from "./auth";
+
+export function requireRole(req: Request, allowedRoles: string[]) {
+  const auth = req.headers.get("authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!token) throw { status: 401, message: "Unauthorized" };
+  const payload = verifyJwt(token);
+  if (!allowedRoles.includes(payload.role)) {
+    throw { status: 403, message: "Forbidden" };
+  }
+  return payload; // contains userId, role, etc.
+}
+
+
+Usage inside API route (App Router):
+
+import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/guards";
+
+export async function POST(req: Request) {
+  try {
+    const payload = requireRole(req, ["ADMIN", "SUPER_ADMIN"]);
+    const body = await req.json();
+    // proceed
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return new NextResponse(JSON.stringify({ error: err.message }), {
+      status: err.status || 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
+3.5 Sidebar component (client) — hides items based on role
+
+Create components/Sidebar.tsx:
+
+"use client";
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
+
+type NavItem = { label: string; href: string; roles: string[] };
+
+const navItems: NavItem[] = [
+  { label: "Write Checks", href: "/write-checks", roles: ["USER", "ADMIN", "SUPER_ADMIN"] },
+  { label: "Add Vendors", href: "/add-vendors", roles: ["ADMIN", "SUPER_ADMIN"] },
+  { label: "Add Bank", href: "/add-bank", roles: ["ADMIN", "SUPER_ADMIN"] },
+  { label: "Add User", href: "/add-user", roles: ["ADMIN", "SUPER_ADMIN"] },
+  { label: "Users", href: "/users", roles: ["ADMIN", "SUPER_ADMIN"] },
+  { label: "Check Print", href: "/check-print", roles: ["ADMIN", "SUPER_ADMIN"] },
+  { label: "Admin Panel", href: "/admin", roles: ["SUPER_ADMIN"] },
+];
+
+async function fetcher(url: string) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("Failed to fetch");
+  return r.json();
+}
+
+export default function Sidebar() {
+  // endpoint returns current user session (including role)
+  const { data, error } = useSWR("/api/auth/session", fetcher);
+  const router = useRouter();
+
+  if (error) return <div className="sidebar">Error</div>;
+  if (!data) return <div className="sidebar">Loading...</div>;
+
+  const role: string = data.user?.role || "USER";
+  return (
+    <nav className="sidebar">
+      <ul>
+        {navItems
+          .filter((n) => n.roles.includes(role))
+          .map((n) => (
+            <li key={n.href}>
+              <Link href={n.href} className="sidebar-link">{n.label}</Link>
+            </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+
+Note: Create /api/auth/session to return the session payload (user role). If you use NextAuth, adapt accordingly (/api/auth/session may already exist).
+
+3.6 Role Switcher UI (Admin Panel)
+
+Create components/RoleSwitcher.tsx:
+
+"use client";
+import React, { useState } from "react";
+
+export default function RoleSwitcher({ userId, currentRole }: { userId: string; currentRole: string }) {
+  const [role, setRole] = useState(currentRole);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSave() {
+    setLoading(true);
+    const res = await fetch(`/api/users/${userId}/role`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    setLoading(false);
+    if (res.ok) {
+      alert("Role updated. User needs to re-login for changes to take effect.");
+    } else {
+      const e = await res.json();
+      alert("Error: " + (e?.error || "unknown"));
+    }
+  }
+
+  return (
+    <div>
+      <label>Role</label>
+      <select value={role} onChange={(e) => setRole(e.target.value)}>
+        <option value="USER">User</option>
+        <option value="ADMIN">Admin</option>
+        <option value="SUPER_ADMIN">Super Admin</option>
+      </select>
+      <button disabled={loading} onClick={handleSave}>
+        Save
+      </button>
+    </div>
+  );
+}
+
+
+API route for role update: app/api/users/[id]/role/route.ts
+
+import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/guards";
+import prisma from "@/lib/prisma";
+
+export async function PUT(req: Request, { params }: { params: { id: string } }) {
+  try {
+    // only SUPER_ADMIN allowed to change roles (or ADMIN+ if you want)
+    requireRole(req, ["SUPER_ADMIN"]);
+
+    const body = await req.json();
+    const { role } = body;
+    if (!["USER", "ADMIN", "SUPER_ADMIN"].includes(role)) {
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: params.id },
+      data: { role },
+    });
+
+    // Optionally invalidate sessions (see below)
+    return NextResponse.json({ ok: true, user: { id: updated.id, role: updated.role }});
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Error" }, { status: err.status || 500 });
+  }
+}
+
+4 — Auth & Token Freshness (avoid stale role in JWT)
+
+Problem: If role stored in JWT and you update DB, the existing JWT still contains old role.
+
+Options:
+
+A. Short lived JWT + Refresh token
+
+Issue short-lived access token (e.g., 15m) + refresh token (longer).
+
+On role change you can:
+
+Revoke refresh token for that user (so they must login again).
+
+Or broadcast an event to invalidate access tokens.
+
+B. Session stored server-side (e.g., NextAuth / Redis session)
+
+Store session server-side and read role from DB each request or from session store.
+
+Update session on role change.
+
+C. Quick approach (practical)
+
+After role is updated, return message instructing user to logout/login.
+
+Or programmatically clear cookie token for that user (if you can target their session), but that requires server-side session tracking.
+
+Recommended (production): Implement short-lived access tokens + refresh tokens + store refresh token IDs in DB to be revocable. On role-change, revoke user's refresh tokens (set a flag in user record tokenRevokedAt and check iat claim to be after that date).
+
+Example check during token verification:
+
+const payload = jwt.verify(token, JWT_SECRET);
+const user = await prisma.user.findUnique({ where: { id: payload.userId }});
+if (user.tokenRevokedAt && payload.iat * 1000 < new Date(user.tokenRevokedAt).getTime()) {
+  throw new Error("Token revoked");
+}
+
+
+When role updated:
+
+await prisma.user.update({ where: { id }, data: { tokenRevokedAt: new Date() }});
+
+
+Then existing tokens become invalid.
+
+5 — Frontend Page Guards (avoid flash of unauthorized content)
+
+Use client-side fetch to /api/auth/session to get role.
+
+If not allowed, perform router.replace("/unauthorized").
+
+Keep Suspense/Loading UI while role retrieval happens.
+
+6 — Testing & QA Checklist
+
+Unit / Integration tests
+
+Middleware blocks unauthorized access: test for each role hitting a protected route.
+
+API guard denies/accepts per role.
+
+Role update API: only SUPER_ADMIN can change roles.
+
+Sidebar shows permitted links for each role (test with mock session).
+
+Role change invalidates token or requires logout.
+
+Manual tests
+
+Create user as USER. Log in — should only see Write Checks.
+
+Create user as ADMIN. Log in — should see admin pages.
+
+Change role from ADMIN → SUPER_ADMIN. Re-login and verify additional UI.
+
+Change role via role switcher and verify DB update.
+
+Attempt direct URL access (type URL): middleware should block for insufficient roles.
+
+On updating role for another user, test token invalidation approach (logout required or tokens revoked).
+
+7 — Deployment / Operational Notes
+
+Set JWT_SECRET on Vercel environment.
+
+Prisma migrations: push or run npx prisma migrate deploy.
+
+If using token revocation store, ensure DB timestamps are in UTC.
+
+If using Redis session store, set up Redis instance.
+
+8 — Cursor-ready task list (paste this into Cursor)
+Task: Implement full RBAC system (Sidebar, middleware guards, role switcher, API guards, Prisma schema, token revocation)
+1. Add Prisma schema changes: add Role enum and role on User model. Create migration.
+2. Implement lib/auth.ts with JWT sign/verify + optional token revocation check using user.tokenRevokedAt.
+3. Implement middleware.ts that:
+   - reads token from HttpOnly cookie "token"
+   - verifies token/payload
+   - checks role against allowlist and returns redirect/403 if unauthorized
+4. Implement API guard helper requireRole(req, allowedRoles) for API routes.
+5. Implement Sidebar component (client) that fetches /api/auth/session and conditionally renders nav items based on role.
+6. Implement RoleSwitcher component and API route PUT /api/users/[id]/role protected for SUPER_ADMIN. On update set tokenRevokedAt = now() to force re-login.
+7. Update login flow to set HttpOnly cookie "token" with JWT payload { userId, username, role, iat }.
+8. Implement logout route that clears the cookie.
+9. Add frontend page guards to avoid flash-of-unauthorized content.
+10. Provide unit & manual tests as described in PRD.
+11. Add README instructions for env vars (JWT_SECRET), prisma migrate, and test steps.
+Deliverables: code files, prisma migration, README, QA checklist.
+
+9 — Quick Example: Login sets token cookie (server route)
+
+app/api/auth/login/route.ts:
+
+import { NextResponse } from "next/server";
+import bcrypt from "bcrypt";
+import prisma from "@/lib/prisma";
+import { signJwt } from "@/lib/auth";
+
+export async function POST(req: Request) {
+  const { username, password } = await req.json();
+  const user = await prisma.user.findUnique({ where: { username } });
+  if (!user) return NextResponse.json({ error: "Invalid" }, { status: 401 });
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return NextResponse.json({ error: "Invalid" }, { status: 401 });
+
+  const token = signJwt({ userId: user.id, username: user.username, role: user.role }, { expiresIn: "1h" });
+  const res = NextResponse.json({ ok: true, user: { id: user.id, username: user.username, role: user.role }});
+  res.cookies.set("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 3600 });
+  return res;
+}
+
+10 — Final notes & recommended next actions
+
+If you want an immediate simple fix: after updating role in DB, ask user to logout/login to get new JWT. But implement token revocation in medium term.
+
+I can generate the actual code files (full components and middleware) and cursor.md/task.md. Say “generate files” and I’ll output them in one go.
